@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>持ち物整理アドバイザー</title>
+<style>
+  :root {
+    --bg: #f7f4f3;
+    --panel: #ffffff;
+    --border: #e8e0dd;
+    --text: #2e2a29;
+    --muted: #7a716d;
+    --accent: #8b6b7a;
+    --accent-dark: #6f4f5d;
+    --keep: #6b8f71;
+    --consider: #c99a3f;
+    --letgo: #b3546b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); margin: 0 0 20px; font-size: 0.9rem; }
+  .layout { display: grid; grid-template-columns: 1fr; gap: 16px; max-width: 980px; margin: 0 auto; }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .panel h2 { font-size: 1rem; margin: 0 0 12px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .row.between { justify-content: space-between; }
+  select, input[type=text], input[type=range], button {
+    font: inherit;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+  }
+  button { cursor: pointer; background: var(--accent); color: #fff; border: none; }
+  button:hover { background: var(--accent-dark); }
+  button.secondary { background: #fff; color: var(--text); border: 1px solid var(--border); }
+  .hint { font-size: 0.8rem; color: var(--muted); margin-top: 8px; }
+  .hint.sync-error { color: var(--letgo); }
+
+  /* stats */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .stat { background: var(--bg); border-radius: 8px; padding: 12px 14px; }
+  .stat .label { font-size: 0.78rem; color: var(--muted); }
+  .stat .value { font-size: 1.25rem; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+  .owner-bar-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+  .owner-bar-item { display: grid; grid-template-columns: 90px 1fr 90px; align-items: center; gap: 10px; font-size: 0.82rem; }
+  .owner-bar-item .bar-track { height: 8px; border-radius: 999px; background: var(--border); overflow: hidden; }
+  .owner-bar-item .bar-fill { height: 100%; border-radius: 999px; background: var(--letgo); }
+  .owner-bar-item .bar-count { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* member management */
+  .member-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .member-chip {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 999px;
+    padding: 4px 6px 4px 12px; font-size: 0.85rem;
+  }
+  .member-chip .rm { background: none; border: none; color: var(--muted); cursor: pointer; padding: 2px 6px; border-radius: 50%; font-size: 0.8rem; }
+  .member-chip .rm:hover { color: var(--letgo); }
+
+  /* self-questions */
+  .self-q-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+  .self-q-item { display: flex; align-items: flex-start; gap: 8px; font-size: 0.85rem; }
+  .self-q-item input[type=checkbox] { margin-top: 3px; accent-color: var(--letgo); flex-shrink: 0; }
+  .self-q-row td { background: var(--bg); padding: 12px 16px; }
+  .retention-block { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .retention-label { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; color: var(--muted); align-items: flex-start; }
+  .expand-btn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.8rem; padding: 2px 4px; white-space: nowrap; }
+  .expand-btn:hover { text-decoration: underline; }
+
+  /* table */
+  .table-wrap { max-height: 460px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+  th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); }
+  td.name-cell { white-space: normal; max-width: 200px; font-weight: 500; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; color: #fff; font-weight: 600;
+  }
+  .badge .score { font-weight: 400; opacity: 0.85; }
+  .manual-tag { font-size: 0.7rem; color: var(--muted); margin-left: 4px; }
+  .status-select { font-size: 0.8rem; padding: 4px 6px; }
+  .cat-count-hint { font-size: 0.72rem; color: var(--muted); margin-left: 4px; white-space: nowrap; }
+  .rm-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.85rem; padding: 2px 6px; }
+  .rm-btn:hover { color: var(--letgo); }
+  .empty { color: var(--muted); text-align: center; padding: 30px 0; font-size: 0.9rem; }
+
+  /* mobile: table becomes a stack of cards */
+  @media (max-width: 600px) {
+    body { padding: 14px; }
+    .table-wrap { overflow: visible; max-height: none; border: none; }
+    #itemBody { display: block; }
+    table, thead, tbody { display: block; width: 100%; }
+    thead { display: none; }
+    tr { display: block; }
+    tbody tr:not(.self-q-row) {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+    }
+    td { display: block; width: 100%; border-bottom: none; padding: 6px 0; white-space: normal; }
+    td.name-cell { font-size: 1.02rem; font-weight: 700; max-width: none; padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
+    td[data-label]::before {
+      content: attr(data-label);
+      display: block;
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    td select, td input[type=text] { width: 100%; box-sizing: border-box; }
+    .self-q-row td { padding: 10px 12px; }
+    /* larger tap targets */
+    .status-select, button { min-height: 40px; }
+    .self-q-item input[type=checkbox] { width: 20px; height: 20px; }
+    .expand-btn { padding: 8px 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div>
+    <h1>持ち物整理アドバイザー</h1>
+    <p class="subtitle">「所有者」と「思い入れ度」×「使用頻度」から手放しの候補を提案します。判定はあくまで参考で、最終的な決定は家族での話し合いに委ねます。</p>
+    <p class="hint" id="syncStatus" style="margin-top:0;"></p>
+  </div>
+
+  <div class="panel">
+    <h2>概要</h2>
+    <div class="stats">
+      <div class="stat"><div class="label">登録アイテム数</div><div class="value" id="statTotal">0</div></div>
+      <div class="stat"><div class="label" style="color: var(--keep);">残す</div><div class="value" id="statKeep" style="color: var(--keep);">0</div></div>
+      <div class="stat"><div class="label" style="color: var(--consider);">検討中</div><div class="value" id="statConsider" style="color: var(--consider);">0</div></div>
+      <div class="stat"><div class="label" style="color: var(--letgo);">手放し候補</div><div class="value" id="statLetgo" style="color: var(--letgo);">0</div></div>
+    </div>
+    <div class="hint" style="margin-top:14px;">所有者別「手放し候補」件数(特定の人に偏っていないかの目安)</div>
+    <div class="owner-bar-list" id="ownerBarList"></div>
+  </div>
+
+  <div class="panel">
+    <h2>家族メンバー</h2>
+    <div class="member-list" id="memberList"></div>
+    <div class="row">
+      <input type="text" id="memberInput" placeholder="名前を追加(例: お父さん)">
+      <button type="button" id="addMemberBtn">追加</button>
+    </div>
+    <p class="hint">アイテム登録時の「所有者」の選択肢になります。「(共有)」は常に選択できます。</p>
+  </div>
+
+  <div class="panel">
+    <h2>アイテムを追加</h2>
+    <div class="row">
+      <input type="text" id="itemName" placeholder="品名を入力してEnter(例: 学生時代の教科書)" style="flex:1; min-width:220px;">
+      <button type="button" id="addItemBtn">追加</button>
+    </div>
+    <p class="hint">まずは品名だけでOKです。所有者・カテゴリ・使用頻度・思い入れ度・自問チェックは、一覧の行から後で設定できます(初期値: 共有 / 月1回程度 / 普通)。</p>
+  </div>
+
+  <div class="panel">
+    <div class="row between" style="margin-bottom: 4px;">
+      <h2 style="margin:0;">アイテム一覧(手放し候補度が高い順)</h2>
+      <button type="button" class="secondary" id="clearAllBtn">全て削除</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>品名</th><th>所有者</th><th>カテゴリ</th><th>使用頻度</th><th>思い入れ度</th><th>判定</th><th>決定ステータス</th><th>自問</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="itemBody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="emptyMsg">まだアイテムが登録されていません</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var SHARED_OWNER = "(共有)";
+
+  var FREQ_OPTIONS = [
+    { label: "毎日使う", value: 5 },
+    { label: "週1回程度", value: 4 },
+    { label: "月1回程度", value: 3 },
+    { label: "年数回", value: 2 },
+    { label: "ほとんど使わない", value: 1 },
+    { label: "全く使っていない", value: 0 }
+  ];
+
+  var ATTACHMENT_OPTIONS = [
+    { label: "1: 特に思い入れはない", value: 1 },
+    { label: "2: 少しある", value: 2 },
+    { label: "3: 普通", value: 3 },
+    { label: "4: わりとある", value: 4 },
+    { label: "5: とても思い入れがある", value: 5 }
+  ];
+
+  // 使い方(用途)ベースの分類。こんまり式の「衣類→本→書類→小物→思い出品」の
+  // 順序を踏まえつつ、一般的な家庭の持ち物に合わせて実用カテゴリを追加。
+  var CATEGORY_OPTIONS = [
+    "衣類", "本・書類", "家電・ガジェット", "キッチン・食器",
+    "趣味・娯楽用品", "日用品・消耗品", "思い出の品", "その他"
+  ];
+
+  var MANUAL_STATUS_OPTIONS = ["未定(自動判定に従う)", "残す", "検討中", "手放し候補"];
+
+  var VERDICT_COLOR = { "残す": "var(--keep)", "検討中": "var(--consider)", "手放し候補": "var(--letgo)" };
+
+  // 「勝手にモノが減る7つの自問」(チェック=手放し方向のシグナル)
+  var SELF_QUESTIONS = [
+    { id: "rebuy", label: "買い直し思考: いったん手放しても、同じモノをまた買わないと思う" },
+    { id: "travel", label: "トラベラー思考: 3ヶ月の旅行には持っていかないと思う" },
+    { id: "auction", label: "オークション思考: 誰かが買ってくれるなら売ってもいい" },
+    { id: "richman", label: "大富豪思考: お金が無限にあっても、これは買わないと思う" },
+    { id: "convert", label: "変換思考: 手放すことで、もっと良い成果に変えられそう" },
+    { id: "timetravel", label: "タイムトラベラー思考: あの日に戻れたら、これは買わないと思う" },
+    { id: "longpass", label: "ロングパス思考: 3・5・10年後には必要ないと思う" }
+  ];
+
+  var state = {
+    members: [],
+    items: [] // { id, notionId, name, owner, category, freq, attachment, manualStatus, selfChecks }
+  };
+  var nextId = 1;
+
+  // ---------- Notion sync ----------
+  // Active only when this page is viewed as a published Artifact with the
+  // mcp capability granted. When opened as a plain local file, window.claude
+  // is absent and the app falls back to the original in-memory-only mode.
+  var NOTION_ENABLED = !!(window.claude && window.claude.mcp);
+  var NOTION_SERVER = "Notion";
+  var NOTION_DATA_SOURCE_ID = "f6c72694-c08d-4585-b300-cab10699d250";
+  var NOTION_DATA_SOURCE_URL = "collection://" + NOTION_DATA_SOURCE_ID;
+  var NOTION_MEMBERS_DATA_SOURCE_ID = "b23f93a2-6b5c-44fd-9e19-eca32b1b58aa";
+  var NOTION_MEMBERS_DATA_SOURCE_URL = "collection://" + NOTION_MEMBERS_DATA_SOURCE_ID;
+  var NOTION_ITEMS_VIEW_URL = "view://278e6dcf-bf22-4e80-83c6-2e3af21f605e";
+  var NOTION_MEMBERS_VIEW_URL = "view://e32892f3-c084-46a9-ab33-b1a7fd50ce69";
+
+  var STATUS_TO_NOTION = { "未定(自動判定に従う)": "未定", "残す": "残す", "検討中": "検討中", "手放し候補": "手放し候補" };
+  var STATUS_FROM_NOTION = { "未定": "未定(自動判定に従う)", "残す": "残す", "検討中": "検討中", "手放し候補": "手放し候補" };
+
+  function selfQuestionShortLabel(q) { return q.label.split(":")[0]; }
+
+  function selfChecksToLabels(selfChecks) {
+    return SELF_QUESTIONS.filter(function (q) { return selfChecks && selfChecks[q.id]; }).map(selfQuestionShortLabel);
+  }
+
+  function labelsToSelfChecks(labels) {
+    var checks = emptySelfChecks();
+    (labels || []).forEach(function (label) {
+      var q = SELF_QUESTIONS.filter(function (q) { return selfQuestionShortLabel(q) === label; })[0];
+      if (q) checks[q.id] = true;
+    });
+    return checks;
+  }
+
+  function itemToNotionProps(item) {
+    var props = {
+      "品名": item.name,
+      "所有者": item.owner,
+      "カテゴリ": item.category || "",
+      "使用頻度": item.freq,
+      "思い入れ度": item.attachment,
+      "自問チェック": selfChecksToLabels(item.selfChecks),
+      "決定ステータス": STATUS_TO_NOTION[item.manualStatus] || "未定"
+    };
+    if (item.retentionUntil) props["date:保管期限:start"] = item.retentionUntil;
+    return props;
+  }
+
+  function extractPageId(url) {
+    var m = /([0-9a-f]{32})(?:\?.*)?$/i.exec(url || "");
+    return m ? m[1] : null;
+  }
+
+  function notionRowToItem(row) {
+    var selfLabels = [];
+    if (row["自問チェック"]) {
+      try { selfLabels = JSON.parse(row["自問チェック"]); } catch (e) { selfLabels = []; }
+    }
+    var pageId = extractPageId(row.url);
+    return {
+      id: pageId,
+      notionId: pageId,
+      name: row["品名"] || "",
+      owner: row["所有者"] || SHARED_OWNER,
+      category: row["カテゴリ"] || "",
+      freq: typeof row["使用頻度"] === "number" ? row["使用頻度"] : 3,
+      attachment: typeof row["思い入れ度"] === "number" ? row["思い入れ度"] : 3,
+      manualStatus: STATUS_FROM_NOTION[row["決定ステータス"]] || MANUAL_STATUS_OPTIONS[0],
+      selfChecks: labelsToSelfChecks(selfLabels),
+      retentionUntil: row["date:保管期限:start"] || "",
+      expanded: false
+    };
+  }
+
+  function setSyncStatus(text, isError) {
+    var el = document.getElementById("syncStatus");
+    el.textContent = text;
+    el.className = "hint" + (isError ? " sync-error" : "");
+  }
+
+  // notion-query-data-sources (SQL mode) has an hourly quota on Free/Plus
+  // Notion plans and fails with a non-retryable "entitlement_required"
+  // tool_error once exhausted. notion-query-database-view (view mode) reads
+  // the same rows without that quota, so all reads go through it instead;
+  // the "削除済み" soft-delete filter is applied client-side since view mode
+  // runs the view's own filters, not arbitrary SQL.
+  function queryAllViewRows(viewUrl) {
+    function fetchPage(cursor) {
+      var input = { view_url: viewUrl, page_size: 100 };
+      if (cursor) input.start_cursor = cursor;
+      return window.claude.mcp.callTool(NOTION_SERVER, "notion-query-database-view", input).then(function (res) {
+        var payload = res.payload || {};
+        var rows = payload.results || [];
+        if (payload.has_more && payload.next_cursor) {
+          return fetchPage(payload.next_cursor).then(function (rest) { return rows.concat(rest); });
+        }
+        return rows;
+      });
+    }
+    return fetchPage(null);
+  }
+
+  function notionLoadItems() {
+    return queryAllViewRows(NOTION_ITEMS_VIEW_URL).then(function (rows) {
+      return rows.filter(function (row) { return row["削除済み"] !== "__YES__"; }).map(notionRowToItem);
+    });
+  }
+
+  function notionCreateItem(item) {
+    setSyncStatus("追加内容をNotionに同期しています…");
+    window.claude.mcp.callTool(NOTION_SERVER, "notion-create-pages", {
+      parent: { type: "data_source_id", data_source_id: NOTION_DATA_SOURCE_ID },
+      pages: [{ properties: itemToNotionProps(item) }]
+    }).then(function (res) {
+      var created = res.payload && res.payload.pages && res.payload.pages[0];
+      if (created && created.id) {
+        item.id = created.id;
+        item.notionId = created.id;
+      }
+      setSyncStatus("Notionと同期中(他の端末からも同じデータが見えます)");
+    }).catch(function (err) {
+      setSyncStatus("「" + item.name + "」の追加に失敗しました(" + (err && err.code) + ")。ページを再読み込みして再度お試しください。", true);
+    });
+  }
+
+  function notionUpdateItem(item, changedProps) {
+    if (!item.notionId) return;
+    window.claude.mcp.callTool(NOTION_SERVER, "notion-update-page", {
+      page_id: item.notionId,
+      command: "update_properties",
+      properties: changedProps
+    }).catch(function (err) {
+      setSyncStatus("「" + item.name + "」の更新の同期に失敗しました(" + (err && err.code) + ")", true);
+    });
+  }
+
+  function notionSoftDeleteItem(item) {
+    if (!item.notionId) return;
+    window.claude.mcp.callTool(NOTION_SERVER, "notion-update-page", {
+      page_id: item.notionId,
+      command: "update_properties",
+      properties: { "削除済み": "__YES__" }
+    }).catch(function (err) {
+      setSyncStatus("「" + item.name + "」の削除の同期に失敗しました(" + (err && err.code) + ")", true);
+    });
+  }
+
+  function notionLoadMembers() {
+    return queryAllViewRows(NOTION_MEMBERS_VIEW_URL).then(function (rows) {
+      return rows.filter(function (row) { return row["削除済み"] !== "__YES__"; }).map(function (row) {
+        var pageId = extractPageId(row.url);
+        return { name: row["名前"] || "", notionId: pageId };
+      }).filter(function (m) { return m.name; });
+    });
+  }
+
+  function notionCreateMember(member) {
+    window.claude.mcp.callTool(NOTION_SERVER, "notion-create-pages", {
+      parent: { type: "data_source_id", data_source_id: NOTION_MEMBERS_DATA_SOURCE_ID },
+      pages: [{ properties: { "名前": member.name } }]
+    }).then(function (res) {
+      var created = res.payload && res.payload.pages && res.payload.pages[0];
+      if (created && created.id) member.notionId = created.id;
+    }).catch(function (err) {
+      setSyncStatus("メンバー「" + member.name + "」の追加の同期に失敗しました(" + (err && err.code) + ")", true);
+    });
+  }
+
+  function notionSoftDeleteMember(member) {
+    if (!member.notionId) return;
+    window.claude.mcp.callTool(NOTION_SERVER, "notion-update-page", {
+      page_id: member.notionId,
+      command: "update_properties",
+      properties: { "削除済み": "__YES__" }
+    }).catch(function (err) {
+      setSyncStatus("メンバー「" + member.name + "」の削除の同期に失敗しました(" + (err && err.code) + ")", true);
+    });
+  }
+
+  function emptySelfChecks() {
+    var checks = {};
+    SELF_QUESTIONS.forEach(function (q) { checks[q.id] = false; });
+    return checks;
+  }
+
+  function selfCheckedCount(selfChecks) {
+    if (!selfChecks) return 0;
+    return SELF_QUESTIONS.reduce(function (n, q) { return n + (selfChecks[q.id] ? 1 : 0); }, 0);
+  }
+
+  function isRetentionActive(item) {
+    if (!item.retentionUntil) return false;
+    var today = new Date().toISOString().slice(0, 10);
+    return item.retentionUntil >= today;
+  }
+
+  function computeLetGoScore(freq, attachment, selfChecks, categoryCount, retentionActive) {
+    var nonUse = 5 - freq;
+    var nonAttach = 5 - attachment;
+    var baseScore = (nonUse / 5) * 70 + (nonAttach / 5) * 30;
+    var selfQBonus = (selfCheckedCount(selfChecks) / SELF_QUESTIONS.length) * 30;
+    // 数量限定の原則(同じ用途のモノを3つ以上持たない): 同一カテゴリ内の
+    // アイテム数が3以上になると、重複所有のシグナルとして加点する。
+    var categoryBonus = (categoryCount >= 3) ? Math.min((categoryCount - 2) * 8, 20) : 0;
+    var combined = baseScore * 0.7 + selfQBonus + categoryBonus;
+    var score;
+    if (retentionActive) {
+      // 保管期限(保証書・書類の保存期限など)が有効な間は、他の要素に関わらず
+      // 手放し候補にしない最優先の安全弁(法的・実用的に必要な書類等の誤削除防止)
+      score = Math.min(combined, 10);
+    } else if (attachment >= 4) {
+      // 思い入れが強いアイテムは、自問やカテゴリ重複の結果を加味しても「手放し候補」までは到達させない(家族バランスの安全弁)
+      score = Math.min(combined, 45);
+    } else {
+      score = combined;
+    }
+    return Math.max(0, Math.min(100, Math.round(score)));
+  }
+
+  function verdictFromScore(score) {
+    if (score >= 65) return "手放し候補";
+    if (score >= 35) return "検討中";
+    return "残す";
+  }
+
+  // 現在のstate.itemsをもとに、カテゴリごとの件数を集計(空欄は除く)。
+  // renderAll()の先頭で更新し、スコア計算や表示から参照する。
+  var currentCategoryCounts = {};
+  function refreshCategoryCounts() {
+    currentCategoryCounts = {};
+    state.items.forEach(function (item) {
+      if (item.category) currentCategoryCounts[item.category] = (currentCategoryCounts[item.category] || 0) + 1;
+    });
+  }
+  function itemCategoryCount(item) {
+    return item.category ? (currentCategoryCounts[item.category] || 0) : 0;
+  }
+
+  function effectiveStatus(item) {
+    if (item.manualStatus && item.manualStatus !== MANUAL_STATUS_OPTIONS[0]) {
+      return { status: item.manualStatus, manual: true };
+    }
+    var score = computeLetGoScore(item.freq, item.attachment, item.selfChecks, itemCategoryCount(item), isRetentionActive(item));
+    return { status: verdictFromScore(score), manual: false };
+  }
+
+  // ---------- Members ----------
+  // Owner options always include: SHARED_OWNER, the managed member list, and
+  // any owner name already used by a loaded item (so a name never renders
+  // as a blank/unmatched <option>, even if the members list is incomplete).
+  function knownOwnerNames() {
+    var names = state.members.map(function (m) { return m.name; });
+    state.items.forEach(function (item) {
+      if (item.owner && names.indexOf(item.owner) === -1) names.push(item.owner);
+    });
+    return names;
+  }
+
+  function renderOwnerSelect(select) {
+    var current = select.value;
+    select.innerHTML = "";
+    var sharedOpt = document.createElement("option");
+    sharedOpt.value = SHARED_OWNER;
+    sharedOpt.textContent = SHARED_OWNER;
+    select.appendChild(sharedOpt);
+    knownOwnerNames().forEach(function (name) {
+      var opt = document.createElement("option");
+      opt.value = name; opt.textContent = name;
+      select.appendChild(opt);
+    });
+    if (current) select.value = current;
+  }
+
+  // カテゴリの選択肢は固定リスト+既存アイテムで使われている値(過去の自由入力
+  // など)の和集合。値が消えたり空欄化したりしないようにするための保険。
+  function knownCategoryNames() {
+    var names = CATEGORY_OPTIONS.slice();
+    state.items.forEach(function (item) {
+      if (item.category && names.indexOf(item.category) === -1) names.push(item.category);
+    });
+    return names;
+  }
+
+  function renderCategorySelect(select, currentValue) {
+    select.innerHTML = "";
+    var emptyOpt = document.createElement("option");
+    emptyOpt.value = "";
+    emptyOpt.textContent = "(未設定)";
+    select.appendChild(emptyOpt);
+    knownCategoryNames().forEach(function (name) {
+      var opt = document.createElement("option");
+      opt.value = name; opt.textContent = name;
+      select.appendChild(opt);
+    });
+    select.value = currentValue || "";
+  }
+
+  function renderMembers() {
+    var list = document.getElementById("memberList");
+    list.innerHTML = "";
+    if (!state.members.length) {
+      var empty = document.createElement("span");
+      empty.className = "hint";
+      empty.style.margin = "0";
+      empty.textContent = "メンバー未登録(全アイテムは「" + SHARED_OWNER + "」になります)";
+      list.appendChild(empty);
+    }
+    state.members.forEach(function (m, idx) {
+      var chip = document.createElement("div");
+      chip.className = "member-chip";
+      var name = document.createElement("span");
+      name.textContent = m.name;
+      var rm = document.createElement("button");
+      rm.className = "rm";
+      rm.type = "button";
+      rm.textContent = "✕";
+      rm.addEventListener("click", function () {
+        state.members.splice(idx, 1);
+        state.items.forEach(function (item) {
+          if (item.owner === m.name) {
+            item.owner = SHARED_OWNER;
+            notionUpdateItem(item, { "所有者": SHARED_OWNER });
+          }
+        });
+        renderAll();
+        notionSoftDeleteMember(m);
+      });
+      chip.appendChild(name);
+      chip.appendChild(rm);
+      list.appendChild(chip);
+    });
+  }
+
+  // ---------- Items ----------
+  function renderSelectOptions(select, options, labelFn, valueFn) {
+    select.innerHTML = "";
+    options.forEach(function (o) {
+      var opt = document.createElement("option");
+      opt.value = valueFn(o);
+      opt.textContent = labelFn(o);
+      select.appendChild(opt);
+    });
+  }
+
+  function renderItems() {
+    var body = document.getElementById("itemBody");
+    body.innerHTML = "";
+    var emptyMsg = document.getElementById("emptyMsg");
+    emptyMsg.style.display = state.items.length ? "none" : "block";
+
+    var sorted = state.items.slice().sort(function (a, b) {
+      return computeLetGoScore(b.freq, b.attachment, b.selfChecks, itemCategoryCount(b), isRetentionActive(b)) - computeLetGoScore(a.freq, a.attachment, a.selfChecks, itemCategoryCount(a), isRetentionActive(a));
+    });
+
+    sorted.forEach(function (item) {
+      var tr = document.createElement("tr");
+
+      var tdName = document.createElement("td");
+      tdName.className = "name-cell";
+      tdName.textContent = item.name;
+
+      var tdOwner = document.createElement("td");
+      tdOwner.setAttribute("data-label", "所有者");
+      var ownerSelect = document.createElement("select");
+      ownerSelect.className = "status-select";
+      renderOwnerSelect(ownerSelect);
+      ownerSelect.value = item.owner;
+      ownerSelect.addEventListener("change", function () {
+        item.owner = ownerSelect.value;
+        renderAll();
+        notionUpdateItem(item, { "所有者": item.owner });
+      });
+      tdOwner.appendChild(ownerSelect);
+
+      var tdCat = document.createElement("td");
+      tdCat.setAttribute("data-label", "カテゴリ");
+      var catSelect = document.createElement("select");
+      catSelect.className = "status-select";
+      renderCategorySelect(catSelect, item.category);
+      catSelect.addEventListener("change", function () {
+        item.category = catSelect.value;
+        renderAll();
+        notionUpdateItem(item, { "カテゴリ": item.category });
+      });
+      tdCat.appendChild(catSelect);
+      var catCount = itemCategoryCount(item);
+      if (catCount >= 2) {
+        var catCountHint = document.createElement("span");
+        catCountHint.className = "cat-count-hint";
+        catCountHint.textContent = "(" + catCount + "件)";
+        tdCat.appendChild(catCountHint);
+      }
+
+      var tdFreq = document.createElement("td");
+      tdFreq.setAttribute("data-label", "使用頻度");
+      var freqSelect = document.createElement("select");
+      freqSelect.className = "status-select";
+      renderSelectOptions(freqSelect, FREQ_OPTIONS, function (o) { return o.label; }, function (o) { return o.value; });
+      freqSelect.value = item.freq;
+      freqSelect.addEventListener("change", function () {
+        item.freq = parseInt(freqSelect.value, 10);
+        renderAll();
+        notionUpdateItem(item, { "使用頻度": item.freq });
+      });
+      tdFreq.appendChild(freqSelect);
+
+      var tdAttach = document.createElement("td");
+      tdAttach.setAttribute("data-label", "思い入れ度");
+      var attachSelect = document.createElement("select");
+      attachSelect.className = "status-select";
+      renderSelectOptions(attachSelect, ATTACHMENT_OPTIONS, function (o) { return o.label; }, function (o) { return o.value; });
+      attachSelect.value = item.attachment;
+      attachSelect.addEventListener("change", function () {
+        item.attachment = parseInt(attachSelect.value, 10);
+        renderAll();
+        notionUpdateItem(item, { "思い入れ度": item.attachment });
+      });
+      tdAttach.appendChild(attachSelect);
+
+      var score = computeLetGoScore(item.freq, item.attachment, item.selfChecks, itemCategoryCount(item), isRetentionActive(item));
+      var eff = effectiveStatus(item);
+
+      var tdVerdict = document.createElement("td");
+      tdVerdict.setAttribute("data-label", "判定");
+      var badge = document.createElement("span");
+      badge.className = "badge";
+      badge.style.background = VERDICT_COLOR[eff.status] || "#999";
+      var scoreSpan = document.createElement("span");
+      scoreSpan.className = "score";
+      scoreSpan.textContent = "(" + score + ")";
+      badge.textContent = eff.status + " ";
+      badge.appendChild(scoreSpan);
+      tdVerdict.appendChild(badge);
+      if (eff.manual) {
+        var tag = document.createElement("span");
+        tag.className = "manual-tag";
+        tag.textContent = "手動";
+        tdVerdict.appendChild(tag);
+      }
+      if (isRetentionActive(item)) {
+        var retentionTag = document.createElement("span");
+        retentionTag.className = "manual-tag";
+        retentionTag.textContent = "🔒保管期限内";
+        tdVerdict.appendChild(retentionTag);
+      }
+
+      var tdStatus = document.createElement("td");
+      tdStatus.setAttribute("data-label", "決定ステータス");
+      var statusSelect = document.createElement("select");
+      statusSelect.className = "status-select";
+      MANUAL_STATUS_OPTIONS.forEach(function (s) {
+        var opt = document.createElement("option");
+        opt.value = s; opt.textContent = s;
+        if (s === item.manualStatus) opt.selected = true;
+        statusSelect.appendChild(opt);
+      });
+      statusSelect.addEventListener("change", function () {
+        item.manualStatus = statusSelect.value;
+        renderAll();
+        notionUpdateItem(item, { "決定ステータス": STATUS_TO_NOTION[item.manualStatus] || "未定" });
+      });
+      tdStatus.appendChild(statusSelect);
+
+      var tdExpand = document.createElement("td");
+      var expandBtn = document.createElement("button");
+      expandBtn.className = "expand-btn";
+      expandBtn.type = "button";
+      var checkedCount = selfCheckedCount(item.selfChecks);
+      expandBtn.textContent = (item.expanded ? "▾ " : "▸ ") + checkedCount + "/" + SELF_QUESTIONS.length;
+      expandBtn.addEventListener("click", function () {
+        item.expanded = !item.expanded;
+        renderAll();
+      });
+      tdExpand.appendChild(expandBtn);
+
+      var tdRm = document.createElement("td");
+      var rmBtn = document.createElement("button");
+      rmBtn.className = "rm-btn";
+      rmBtn.type = "button";
+      rmBtn.textContent = "削除";
+      rmBtn.addEventListener("click", function () {
+        state.items = state.items.filter(function (i) { return i.id !== item.id; });
+        renderAll();
+        notionSoftDeleteItem(item);
+      });
+      tdRm.appendChild(rmBtn);
+
+      tr.appendChild(tdName);
+      tr.appendChild(tdOwner);
+      tr.appendChild(tdCat);
+      tr.appendChild(tdFreq);
+      tr.appendChild(tdAttach);
+      tr.appendChild(tdVerdict);
+      tr.appendChild(tdStatus);
+      tr.appendChild(tdExpand);
+      tr.appendChild(tdRm);
+      body.appendChild(tr);
+
+      if (item.expanded) {
+        var expandRow = document.createElement("tr");
+        expandRow.className = "self-q-row";
+        var expandCell = document.createElement("td");
+        expandCell.colSpan = 9;
+
+        var retentionBlock = document.createElement("div");
+        retentionBlock.className = "retention-block";
+        var retentionLabel = document.createElement("label");
+        retentionLabel.className = "retention-label";
+        retentionLabel.textContent = "保管期限(任意・保証書や書類の保存期限など)";
+        var retentionInput = document.createElement("input");
+        retentionInput.type = "date";
+        retentionInput.value = item.retentionUntil || "";
+        retentionInput.addEventListener("change", function () {
+          item.retentionUntil = retentionInput.value || "";
+          renderAll();
+          notionUpdateItem(item, { "date:保管期限:start": item.retentionUntil || null });
+        });
+        retentionLabel.appendChild(retentionInput);
+        retentionBlock.appendChild(retentionLabel);
+        var retentionHint = document.createElement("p");
+        retentionHint.className = "hint";
+        retentionHint.style.margin = "6px 0 0";
+        retentionHint.textContent = "参考(一般的な目安。個別事情で異なるため正確な期間は公式情報を確認してください): 確定申告関係の帳簿・書類は5〜7年、契約書は5年程度、医療費領収書は5年、保証書は記載の保証期間まで。";
+        retentionBlock.appendChild(retentionHint);
+        if (isRetentionActive(item)) {
+          var retentionActiveTag = document.createElement("p");
+          retentionActiveTag.className = "hint";
+          retentionActiveTag.style.margin = "6px 0 0";
+          retentionActiveTag.style.color = "var(--keep)";
+          retentionActiveTag.textContent = "🔒 保管期限内のため、手放し候補にはなりません。";
+          retentionBlock.appendChild(retentionActiveTag);
+        }
+        expandCell.appendChild(retentionBlock);
+
+        var list = document.createElement("div");
+        list.className = "self-q-list";
+        if (!item.selfChecks) item.selfChecks = emptySelfChecks();
+        SELF_QUESTIONS.forEach(function (q) {
+          var row = document.createElement("label");
+          row.className = "self-q-item";
+          var cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = !!item.selfChecks[q.id];
+          cb.addEventListener("change", function () {
+            item.selfChecks[q.id] = cb.checked;
+            renderAll();
+            notionUpdateItem(item, { "自問チェック": selfChecksToLabels(item.selfChecks) });
+          });
+          var span = document.createElement("span");
+          span.textContent = q.label;
+          row.appendChild(cb);
+          row.appendChild(span);
+          list.appendChild(row);
+        });
+        expandCell.appendChild(list);
+        expandRow.appendChild(expandCell);
+        body.appendChild(expandRow);
+      }
+    });
+  }
+
+  // ---------- Stats ----------
+  function renderStats() {
+    var counts = { "残す": 0, "検討中": 0, "手放し候補": 0 };
+    var ownerLetgoCounts = {};
+
+    state.items.forEach(function (item) {
+      var eff = effectiveStatus(item);
+      counts[eff.status] = (counts[eff.status] || 0) + 1;
+      if (eff.status === "手放し候補") {
+        ownerLetgoCounts[item.owner] = (ownerLetgoCounts[item.owner] || 0) + 1;
+      }
+    });
+
+    document.getElementById("statTotal").textContent = state.items.length;
+    document.getElementById("statKeep").textContent = counts["残す"];
+    document.getElementById("statConsider").textContent = counts["検討中"];
+    document.getElementById("statLetgo").textContent = counts["手放し候補"];
+
+    var ownerList = document.getElementById("ownerBarList");
+    ownerList.innerHTML = "";
+    var owners = Object.keys(ownerLetgoCounts);
+    if (!owners.length) {
+      var empty = document.createElement("div");
+      empty.className = "hint";
+      empty.style.margin = "0";
+      empty.textContent = "手放し候補はまだありません";
+      ownerList.appendChild(empty);
+      return;
+    }
+    var maxCount = Math.max.apply(null, owners.map(function (o) { return ownerLetgoCounts[o]; }));
+    owners.sort(function (a, b) { return ownerLetgoCounts[b] - ownerLetgoCounts[a]; });
+    owners.forEach(function (o) {
+      var row = document.createElement("div");
+      row.className = "owner-bar-item";
+      var name = document.createElement("div");
+      name.textContent = o;
+      var track = document.createElement("div");
+      track.className = "bar-track";
+      var fill = document.createElement("div");
+      fill.className = "bar-fill";
+      fill.style.width = (ownerLetgoCounts[o] / maxCount * 100) + "%";
+      track.appendChild(fill);
+      var count = document.createElement("div");
+      count.className = "bar-count";
+      count.textContent = ownerLetgoCounts[o] + " 件";
+      row.appendChild(name);
+      row.appendChild(track);
+      row.appendChild(count);
+      ownerList.appendChild(row);
+    });
+  }
+
+  function renderAll() {
+    refreshCategoryCounts();
+    renderMembers();
+    renderItems();
+    renderStats();
+  }
+
+  // ---------- Init / events ----------
+  function init() {
+    document.getElementById("addMemberBtn").addEventListener("click", function () {
+      var input = document.getElementById("memberInput");
+      var name = input.value.trim();
+      if (!name || state.members.some(function (m) { return m.name === name; })) return;
+      var newMember = { name: name, notionId: null };
+      state.members.push(newMember);
+      input.value = "";
+      renderAll();
+      if (NOTION_ENABLED) notionCreateMember(newMember);
+    });
+    document.getElementById("memberInput").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") document.getElementById("addMemberBtn").click();
+    });
+
+    document.getElementById("addItemBtn").addEventListener("click", function () {
+      var nameInput = document.getElementById("itemName");
+      var name = nameInput.value.trim();
+      if (!name) return;
+      var newItem = {
+        id: "temp-" + (nextId++),
+        notionId: null,
+        name: name,
+        owner: SHARED_OWNER,
+        category: "",
+        freq: 3,
+        attachment: 3,
+        manualStatus: MANUAL_STATUS_OPTIONS[0],
+        selfChecks: emptySelfChecks(),
+        retentionUntil: "",
+        expanded: false
+      };
+      state.items.push(newItem);
+      nameInput.value = "";
+      renderAll();
+      nameInput.focus();
+      if (NOTION_ENABLED) notionCreateItem(newItem);
+    });
+    document.getElementById("itemName").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") document.getElementById("addItemBtn").click();
+    });
+
+    document.getElementById("clearAllBtn").addEventListener("click", function () {
+      var toDelete = state.items;
+      state.items = [];
+      renderAll();
+      if (NOTION_ENABLED) toDelete.forEach(notionSoftDeleteItem);
+    });
+
+    if (NOTION_ENABLED) {
+      setSyncStatus("Notionから読み込んでいます…");
+      Promise.all([notionLoadItems(), notionLoadMembers()]).then(function (results) {
+        state.items = results[0];
+        state.members = results[1];
+        renderAll();
+        setSyncStatus("Notionと同期中(他の端末からも同じデータが見えます)");
+      }).catch(function (err) {
+        setSyncStatus("Notionからの読み込みに失敗しました(" + (err && err.code) + ")。ページを再読み込みしてください。", true);
+        renderAll();
+      });
+    } else {
+      setSyncStatus("ローカルモードです(このページを閉じるとデータは消えます)");
+      renderAll();
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+</script>
+</body>
+</html>
