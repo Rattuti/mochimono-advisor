@@ -164,6 +164,21 @@
   </div>
 
   <div class="panel">
+    <h2>断捨離・ミニマリスト思考チェック</h2>
+    <p class="hint">個々のアイテムを判断する前に、まず自分の傾向を知っておくと整理がしやすくなります。メンバーごとに診断できます(この診断結果はアイテムの手放し候補度スコアには影響しません)。</p>
+    <div class="row">
+      <label style="flex:1; min-width:180px;">診断するメンバー
+        <select id="mindsetMemberSelect"></select>
+      </label>
+    </div>
+    <div id="mindsetQuestions" style="margin-top:10px;"></div>
+    <button type="button" id="mindsetSubmitBtn" style="margin-top:8px;">診断する</button>
+    <div id="mindsetResult" style="margin-top:12px;"></div>
+    <div class="hint" style="margin-top:10px;">診断済みメンバー:</div>
+    <div id="mindsetMemberSummaryList" style="margin-top:6px;"></div>
+  </div>
+
+  <div class="panel">
     <h2>アイテムを追加</h2>
     <div class="row">
       <input type="text" id="itemName" placeholder="品名を入力してEnter(例: 学生時代の教科書)" style="flex:1; min-width:220px;">
@@ -238,7 +253,8 @@
 
   var state = {
     members: [],
-    items: [] // { id, notionId, name, owner, category, freq, attachment, manualStatus, selfChecks }
+    items: [], // { id, notionId, name, owner, category, freq, attachment, manualStatus, selfChecks }
+    mindsetResults: {} // 家族メンバー名 -> { answers: [bool], score, type, date } (ローカルのみ・Notion同期なし)
   };
   var nextId = 1;
 
@@ -485,7 +501,113 @@
     return { status: verdictFromScore(score), manual: false };
   }
 
-  // ---------- Members ----------
+  // ---------- 断捨離・ミニマリスト思考チェック(メンバーごと・ローカルのみ) ----------
+  var MINDSET_QUESTIONS = [
+    { text: "物を捨てる時にためらう方だ", reverse: false },
+    { text: "「いつか使うかも」と思って物を残しがち", reverse: false },
+    { text: "同じような用途の物を何個も持っている", reverse: false },
+    { text: "過去1年使っていない物が家にたくさんある", reverse: false },
+    { text: "人からもらった物は使わなくても捨てにくい", reverse: false },
+    { text: "部屋に物が少ない方が気持ちが落ち着く", reverse: true },
+    { text: "新しい物を買う時、似た物を持っていないか確認する", reverse: true },
+    { text: "定期的に持ち物を見直す習慣がある", reverse: true }
+  ];
+  function computeMindsetResult(answers) {
+    var hoardingTotal = 0, hoardingChecked = 0, minimalistTotal = 0, minimalistChecked = 0;
+    MINDSET_QUESTIONS.forEach(function (q, i) {
+      if (q.reverse) { minimalistTotal++; if (answers[i]) minimalistChecked++; }
+      else { hoardingTotal++; if (answers[i]) hoardingChecked++; }
+    });
+    var hoardingSignals = hoardingChecked + (minimalistTotal - minimalistChecked);
+    var maxSignals = hoardingTotal + minimalistTotal;
+    var score = Math.round((hoardingSignals / maxSignals) * 100);
+    var type, advice;
+    if (score >= 65) {
+      type = "ためこみ傾向タイプ";
+      advice = "物への愛着や「もったいない」という気持ちが強めです。いきなり全部を判断しようとせず、まずは1カテゴリ・1日1個など小さく始めるのがおすすめです。";
+    } else if (score >= 35) {
+      type = "バランス型";
+      advice = "残す物と手放す物をケースバイケースで判断できるタイプです。判断に迷う物だけ、期限を決めて保留にする仕組み(このアプリの保留機能)をうまく使いましょう。";
+    } else {
+      type = "ミニマリスト気質";
+      advice = "物を絞り込むことに抵抗が少ないタイプです。家族の他のメンバーの判断ペースとの違いに配慮しつつ、無理に急かさないようにしましょう。";
+    }
+    return { score: score, type: type, advice: advice };
+  }
+  function renderMindsetQuestions(answers) {
+    var wrap = document.getElementById("mindsetQuestions");
+    wrap.innerHTML = "";
+    MINDSET_QUESTIONS.forEach(function (q, i) {
+      var label = document.createElement("label");
+      label.style.display = "block";
+      label.style.margin = "4px 0";
+      var input = document.createElement("input");
+      input.type = "checkbox";
+      input.id = "mindsetQ" + i;
+      input.checked = !!(answers && answers[i]);
+      label.appendChild(input);
+      label.appendChild(document.createTextNode(" " + q.text));
+      wrap.appendChild(label);
+    });
+  }
+  function renderMindsetResultBox(memberName) {
+    var box = document.getElementById("mindsetResult");
+    var result = state.mindsetResults[memberName];
+    if (!result) { box.innerHTML = ""; return; }
+    box.innerHTML = "";
+    var title = document.createElement("div");
+    title.style.fontWeight = "600";
+    title.textContent = memberName + "さんの診断結果: " + result.type + "(" + result.score + "/100)";
+    var adviceEl = document.createElement("div");
+    adviceEl.className = "hint";
+    adviceEl.style.marginTop = "4px";
+    adviceEl.textContent = result.advice;
+    box.appendChild(title);
+    box.appendChild(adviceEl);
+  }
+  function renderMindsetMemberSummaryList() {
+    var listEl = document.getElementById("mindsetMemberSummaryList");
+    listEl.innerHTML = "";
+    var names = Object.keys(state.mindsetResults);
+    if (!names.length) {
+      var empty = document.createElement("span");
+      empty.className = "hint"; empty.style.margin = "0";
+      empty.textContent = "まだ診断済みのメンバーがいません";
+      listEl.appendChild(empty);
+      return;
+    }
+    names.forEach(function (name) {
+      var r = state.mindsetResults[name];
+      var chip = document.createElement("div");
+      chip.className = "member-chip";
+      chip.textContent = name + ": " + r.type + "(" + r.score + ")";
+      listEl.appendChild(chip);
+    });
+  }
+  function renderMindsetPanel() {
+    var select = document.getElementById("mindsetMemberSelect");
+    var current = select.value;
+    select.innerHTML = "";
+    if (!state.members.length) {
+      var opt = document.createElement("option");
+      opt.value = ""; opt.textContent = "(先に家族メンバーを登録してください)";
+      select.appendChild(opt);
+    } else {
+      state.members.forEach(function (m) {
+        var opt = document.createElement("option");
+        opt.value = m.name; opt.textContent = m.name;
+        select.appendChild(opt);
+      });
+      if (current && state.members.some(function (m) { return m.name === current; })) select.value = current;
+    }
+    var selectedName = select.value;
+    var existing = state.mindsetResults[selectedName];
+    renderMindsetQuestions(existing ? existing.answers : null);
+    renderMindsetResultBox(selectedName);
+    renderMindsetMemberSummaryList();
+  }
+
+
   // Owner options always include: SHARED_OWNER, the managed member list, and
   // any owner name already used by a loaded item (so a name never renders
   // as a blank/unmatched <option>, even if the members list is incomplete).
@@ -855,6 +977,7 @@
   function renderAll() {
     refreshCategoryCounts();
     renderMembers();
+    renderMindsetPanel();
     renderItems();
     renderStats();
   }
@@ -873,6 +996,26 @@
     });
     document.getElementById("memberInput").addEventListener("keydown", function (e) {
       if (e.key === "Enter") document.getElementById("addMemberBtn").click();
+    });
+
+    document.getElementById("mindsetMemberSelect").addEventListener("change", function () {
+      var name = document.getElementById("mindsetMemberSelect").value;
+      var existing = state.mindsetResults[name];
+      renderMindsetQuestions(existing ? existing.answers : null);
+      renderMindsetResultBox(name);
+    });
+    document.getElementById("mindsetSubmitBtn").addEventListener("click", function () {
+      var name = document.getElementById("mindsetMemberSelect").value;
+      if (!name) return;
+      var answers = MINDSET_QUESTIONS.map(function (q, i) {
+        return document.getElementById("mindsetQ" + i).checked;
+      });
+      var result = computeMindsetResult(answers);
+      result.answers = answers;
+      result.date = new Date().toISOString().slice(0, 10);
+      state.mindsetResults[name] = result;
+      renderMindsetResultBox(name);
+      renderMindsetMemberSummaryList();
     });
 
     document.getElementById("addItemBtn").addEventListener("click", function () {
