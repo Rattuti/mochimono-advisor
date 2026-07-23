@@ -76,6 +76,14 @@
   .self-q-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
   .self-q-item { display: flex; align-items: flex-start; gap: 8px; font-size: 0.85rem; }
   .self-q-item input[type=checkbox] { margin-top: 3px; accent-color: var(--letgo); flex-shrink: 0; }
+  .waste-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .waste-cal-dow { text-align: center; font-size: 0.75rem; color: var(--muted); padding: 2px 0; }
+  .waste-cal-day { border: 1px solid var(--border); border-radius: 6px; min-height: 56px; padding: 4px; font-size: 0.75rem; }
+  .waste-cal-day.empty { border: none; }
+  .waste-cal-day .d-num { font-size: 0.75rem; color: var(--muted); }
+  .waste-cal-tag { display: block; border-radius: 4px; padding: 1px 4px; margin-top: 2px; font-size: 0.68rem; color: #fff; line-height: 1.3; }
+  .waste-rule-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 6px; }
+  .waste-rule-row .dow-check { font-size: 0.78rem; margin-right: 6px; }
   .self-q-row td { background: var(--bg); padding: 12px 16px; }
   .retention-block { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
   .retention-label { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; color: var(--muted); align-items: flex-start; }
@@ -179,6 +187,27 @@
   </div>
 
   <div class="panel">
+    <h2>ゴミ収集カレンダー・廃棄ルール</h2>
+    <p class="hint">初回だけお住まいの地域と収集ルールを設定すれば、以降は毎月自動でカレンダーに反映されます(この設定はこのブラウザ内に保存されます。別の端末からは見えません)。</p>
+    <div class="row">
+      <label style="flex:1; min-width:200px;">お住まいの地域(市区町村)
+        <input type="text" id="wasteMunicipality" placeholder="例: 東京都○○区">
+      </label>
+    </div>
+
+    <div class="hint" style="margin-top:12px;">収集ルール設定</div>
+    <div id="wasteRuleList" style="margin-top:6px;"></div>
+    <button type="button" class="secondary" id="addWasteRuleBtn" style="margin-top:6px;">+ ルールを追加</button>
+
+    <div class="row" style="margin-top:16px; align-items:center;">
+      <button type="button" class="secondary" id="wasteCalPrevBtn">◀ 前月</button>
+      <div id="wasteCalMonthLabel" style="font-weight:600; min-width:110px; text-align:center;"></div>
+      <button type="button" class="secondary" id="wasteCalNextBtn">次月 ▶</button>
+    </div>
+    <div id="wasteCalendarGrid" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="panel">
     <h2>アイテムを追加</h2>
     <div class="row">
       <input type="text" id="itemName" placeholder="品名を入力してEnter(例: 学生時代の教科書)" style="flex:1; min-width:220px;">
@@ -240,6 +269,47 @@
 
   var VERDICT_COLOR = { "残す": "var(--keep)", "検討中": "var(--consider)", "手放し候補": "var(--letgo)" };
 
+  // ---------- ゴミ収集カレンダー・廃棄ルール(このブラウザのlocalStorageにのみ保存、Notion同期なし) ----------
+  var DISPOSAL_CATEGORY_OPTIONS = [
+    "燃えるごみ", "燃えないごみ", "資源ごみ(古紙・古布)", "資源ごみ(びん・かん・ペットボトル)",
+    "プラスチック製容器包装", "粗大ごみ", "その他/不明"
+  ];
+  var WASTE_TAG_COLORS = ["#8b6b7a", "#6f4f5d", "#6b8f71", "#c99a3f", "#4f7fa8", "#b3546b", "#8a7f5c"];
+  var WASTE_STORAGE_KEY = "mochimono_waste_settings_v1";
+  var DOW_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
+  var nextWasteRuleId = 1;
+
+  function defaultWasteSettings() { return { municipality: "", rules: [] }; }
+  function loadWasteSettings() {
+    try {
+      var raw = window.localStorage.getItem(WASTE_STORAGE_KEY);
+      if (!raw) return defaultWasteSettings();
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return defaultWasteSettings();
+      parsed.rules = (parsed.rules || []).map(function (r) {
+        r.id = r.id || "wr-" + (nextWasteRuleId++);
+        return r;
+      });
+      return parsed;
+    } catch (e) { return defaultWasteSettings(); }
+  }
+  function saveWasteSettings() {
+    try { window.localStorage.setItem(WASTE_STORAGE_KEY, JSON.stringify(wasteState)); }
+    catch (e) { /* localStorageが使えない環境では保存をあきらめる(致命的ではない) */ }
+  }
+  var wasteState = loadWasteSettings();
+  var wasteCalendarView = (function () { var d = new Date(); return { year: d.getFullYear(), month: d.getMonth() }; })();
+
+  function categoryColor(category) {
+    var idx = DISPOSAL_CATEGORY_OPTIONS.indexOf(category);
+    if (idx < 0) idx = 0;
+    return WASTE_TAG_COLORS[idx % WASTE_TAG_COLORS.length];
+  }
+  function buildWasteSearchUrl(municipality, category) {
+    var q = (municipality || "") + " ゴミ 分別 " + category;
+    return "https://www.google.com/search?q=" + encodeURIComponent(q);
+  }
+
   // 「勝手にモノが減る7つの自問」(チェック=手放し方向のシグナル)
   var SELF_QUESTIONS = [
     { id: "rebuy", label: "買い直し思考: いったん手放しても、同じモノをまた買わないと思う" },
@@ -296,7 +366,8 @@
       "使用頻度": item.freq,
       "思い入れ度": item.attachment,
       "自問チェック": selfChecksToLabels(item.selfChecks),
-      "決定ステータス": STATUS_TO_NOTION[item.manualStatus] || "未定"
+      "決定ステータス": STATUS_TO_NOTION[item.manualStatus] || "未定",
+      "廃棄カテゴリ": item.disposalCategory || ""
     };
     if (item.retentionUntil) props["date:保管期限:start"] = item.retentionUntil;
     return props;
@@ -324,6 +395,7 @@
       manualStatus: STATUS_FROM_NOTION[row["決定ステータス"]] || MANUAL_STATUS_OPTIONS[0],
       selfChecks: labelsToSelfChecks(selfLabels),
       retentionUntil: row["date:保管期限:start"] || "",
+      disposalCategory: row["廃棄カテゴリ"] || "",
       expanded: false
     };
   }
@@ -917,6 +989,47 @@
         }
         expandCell.appendChild(retentionBlock);
 
+        var disposalBlock = document.createElement("div");
+        disposalBlock.className = "retention-block";
+        var disposalLabel = document.createElement("label");
+        disposalLabel.className = "retention-label";
+        disposalLabel.textContent = "手放す時の廃棄カテゴリ(任意)";
+        var disposalSelect = document.createElement("select");
+        disposalSelect.className = "status-select";
+        var noneOpt = document.createElement("option");
+        noneOpt.value = ""; noneOpt.textContent = "未設定";
+        disposalSelect.appendChild(noneOpt);
+        DISPOSAL_CATEGORY_OPTIONS.forEach(function (c) {
+          var opt = document.createElement("option"); opt.value = c; opt.textContent = c;
+          if (c === item.disposalCategory) opt.selected = true;
+          disposalSelect.appendChild(opt);
+        });
+        disposalSelect.addEventListener("change", function () {
+          item.disposalCategory = disposalSelect.value;
+          renderAll();
+          notionUpdateItem(item, { "廃棄カテゴリ": item.disposalCategory });
+        });
+        disposalLabel.appendChild(disposalSelect);
+        disposalBlock.appendChild(disposalLabel);
+        if (item.disposalCategory) {
+          var disposalLink = document.createElement("a");
+          disposalLink.href = buildWasteSearchUrl(wasteState.municipality, item.disposalCategory);
+          disposalLink.target = "_blank";
+          disposalLink.rel = "noopener noreferrer";
+          disposalLink.className = "hint";
+          disposalLink.style.display = "inline-block";
+          disposalLink.style.marginTop = "4px";
+          disposalLink.textContent = (wasteState.municipality || "お住まいの地域") + "の「" + item.disposalCategory + "」の分別ルールを検索 →";
+          disposalBlock.appendChild(disposalLink);
+        } else {
+          var disposalHint = document.createElement("p");
+          disposalHint.className = "hint";
+          disposalHint.style.margin = "4px 0 0";
+          disposalHint.textContent = "廃棄カテゴリを選ぶと、お住まいの地域の分別ルール検索リンクが表示されます。";
+          disposalBlock.appendChild(disposalHint);
+        }
+        expandCell.appendChild(disposalBlock);
+
         var list = document.createElement("div");
         list.className = "self-q-list";
         if (!item.selfChecks) item.selfChecks = emptySelfChecks();
@@ -996,16 +1109,167 @@
     });
   }
 
+  // ---------- ゴミ収集カレンダーの描画 ----------
+  function renderWasteRuleList() {
+    var wrap = document.getElementById("wasteRuleList");
+    wrap.innerHTML = "";
+    if (!wasteState.rules.length) {
+      var empty = document.createElement("p");
+      empty.className = "hint"; empty.style.margin = "0";
+      empty.textContent = "まだルールがありません。「+ ルールを追加」から設定してください(例: 燃えるごみ=毎週月・木)。";
+      wrap.appendChild(empty);
+      return;
+    }
+    wasteState.rules.forEach(function (rule) {
+      var row = document.createElement("div");
+      row.className = "waste-rule-row";
+
+      var catSelect = document.createElement("select");
+      catSelect.className = "status-select";
+      DISPOSAL_CATEGORY_OPTIONS.forEach(function (c) {
+        var opt = document.createElement("option"); opt.value = c; opt.textContent = c;
+        if (c === rule.category) opt.selected = true;
+        catSelect.appendChild(opt);
+      });
+      catSelect.addEventListener("change", function () { rule.category = catSelect.value; saveWasteSettings(); renderWasteCalendar(); });
+      row.appendChild(catSelect);
+
+      var modeSelect = document.createElement("select");
+      modeSelect.className = "status-select";
+      [["weekly", "毎週"], ["nth", "第N週のみ"]].forEach(function (pair) {
+        var opt = document.createElement("option"); opt.value = pair[0]; opt.textContent = pair[1];
+        if (pair[0] === rule.mode) opt.selected = true;
+        modeSelect.appendChild(opt);
+      });
+      modeSelect.addEventListener("change", function () { rule.mode = modeSelect.value; saveWasteSettings(); renderWasteRuleList(); renderWasteCalendar(); });
+      row.appendChild(modeSelect);
+
+      DOW_LABELS.forEach(function (label, dowIdx) {
+        var dowLabel = document.createElement("label");
+        dowLabel.className = "dow-check";
+        var cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = rule.weekdays.indexOf(dowIdx) >= 0;
+        cb.addEventListener("change", function () {
+          var pos = rule.weekdays.indexOf(dowIdx);
+          if (cb.checked && pos < 0) rule.weekdays.push(dowIdx);
+          if (!cb.checked && pos >= 0) rule.weekdays.splice(pos, 1);
+          saveWasteSettings(); renderWasteCalendar();
+        });
+        dowLabel.appendChild(cb);
+        dowLabel.appendChild(document.createTextNode(label));
+        row.appendChild(dowLabel);
+      });
+
+      if (rule.mode === "nth") {
+        [1, 2, 3, 4, 5].forEach(function (n) {
+          var nthLabel = document.createElement("label");
+          nthLabel.className = "dow-check";
+          var cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = rule.nths.indexOf(n) >= 0;
+          cb.addEventListener("change", function () {
+            var pos = rule.nths.indexOf(n);
+            if (cb.checked && pos < 0) rule.nths.push(n);
+            if (!cb.checked && pos >= 0) rule.nths.splice(pos, 1);
+            saveWasteSettings(); renderWasteCalendar();
+          });
+          nthLabel.appendChild(cb);
+          nthLabel.appendChild(document.createTextNode("第" + n));
+          row.appendChild(nthLabel);
+        });
+      }
+
+      var rmBtn = document.createElement("button");
+      rmBtn.type = "button"; rmBtn.className = "rm-btn"; rmBtn.textContent = "削除";
+      rmBtn.addEventListener("click", function () {
+        wasteState.rules = wasteState.rules.filter(function (r) { return r.id !== rule.id; });
+        saveWasteSettings(); renderWasteRuleList(); renderWasteCalendar();
+      });
+      row.appendChild(rmBtn);
+
+      wrap.appendChild(row);
+    });
+  }
+
+  function renderWasteCalendar() {
+    var year = wasteCalendarView.year, month = wasteCalendarView.month;
+    document.getElementById("wasteCalMonthLabel").textContent = year + "年" + (month + 1) + "月";
+    var grid = document.getElementById("wasteCalendarGrid");
+    grid.innerHTML = "";
+    var container = document.createElement("div");
+    container.className = "waste-cal-grid";
+    DOW_LABELS.forEach(function (label) {
+      var el = document.createElement("div");
+      el.className = "waste-cal-dow";
+      el.textContent = label;
+      container.appendChild(el);
+    });
+    var firstDow = new Date(year, month, 1).getDay();
+    var daysInMonth = new Date(year, month + 1, 0).getDate();
+    for (var i = 0; i < firstDow; i++) {
+      var blank = document.createElement("div");
+      blank.className = "waste-cal-day empty";
+      container.appendChild(blank);
+    }
+    for (var day = 1; day <= daysInMonth; day++) {
+      var dow = new Date(year, month, day).getDay();
+      var nth = Math.ceil(day / 7);
+      var cell = document.createElement("div");
+      cell.className = "waste-cal-day";
+      var dnum = document.createElement("div");
+      dnum.className = "d-num";
+      dnum.textContent = day;
+      cell.appendChild(dnum);
+      wasteState.rules.forEach(function (rule) {
+        if (!rule.category || rule.weekdays.indexOf(dow) < 0) return;
+        if (rule.mode === "nth" && rule.nths.indexOf(nth) < 0) return;
+        var tag = document.createElement("span");
+        tag.className = "waste-cal-tag";
+        tag.style.background = categoryColor(rule.category);
+        tag.textContent = rule.category;
+        cell.appendChild(tag);
+      });
+      container.appendChild(cell);
+    }
+    grid.appendChild(container);
+  }
+
   function renderAll() {
     refreshCategoryCounts();
     renderMembers();
     renderMindsetPanel();
     renderItems();
     renderStats();
+    renderWasteRuleList();
+    renderWasteCalendar();
   }
 
   // ---------- Init / events ----------
   function init() {
+    document.getElementById("wasteMunicipality").value = wasteState.municipality || "";
+    document.getElementById("wasteMunicipality").addEventListener("change", function () {
+      wasteState.municipality = document.getElementById("wasteMunicipality").value.trim();
+      saveWasteSettings();
+      renderItems(); // 検索リンクの地域名を更新
+    });
+    document.getElementById("addWasteRuleBtn").addEventListener("click", function () {
+      wasteState.rules.push({ id: "wr-" + (nextWasteRuleId++), category: DISPOSAL_CATEGORY_OPTIONS[0], mode: "weekly", weekdays: [], nths: [] });
+      saveWasteSettings();
+      renderWasteRuleList();
+      renderWasteCalendar();
+    });
+    document.getElementById("wasteCalPrevBtn").addEventListener("click", function () {
+      wasteCalendarView.month--;
+      if (wasteCalendarView.month < 0) { wasteCalendarView.month = 11; wasteCalendarView.year--; }
+      renderWasteCalendar();
+    });
+    document.getElementById("wasteCalNextBtn").addEventListener("click", function () {
+      wasteCalendarView.month++;
+      if (wasteCalendarView.month > 11) { wasteCalendarView.month = 0; wasteCalendarView.year++; }
+      renderWasteCalendar();
+    });
+
     document.getElementById("addMemberBtn").addEventListener("click", function () {
       var input = document.getElementById("memberInput");
       var name = input.value.trim();
@@ -1066,6 +1330,7 @@
         manualStatus: MANUAL_STATUS_OPTIONS[0],
         selfChecks: emptySelfChecks(),
         retentionUntil: "",
+        disposalCategory: "",
         expanded: false
       };
       state.items.push(newItem);
