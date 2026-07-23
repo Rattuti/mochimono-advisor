@@ -294,6 +294,7 @@
     } catch (e) { return defaultWasteSettings(); }
   }
   function saveWasteSettings() {
+    if (NOTION_ENABLED) return; // Notionモードでは個別の同期関数(notionSaveMunicipality等)を使う
     try { window.localStorage.setItem(WASTE_STORAGE_KEY, JSON.stringify(wasteState)); }
     catch (e) { /* localStorageが使えない環境では保存をあきらめる(致命的ではない) */ }
   }
@@ -339,6 +340,8 @@
   var NOTION_MEMBERS_DATA_SOURCE_URL = "collection://" + NOTION_MEMBERS_DATA_SOURCE_ID;
   var NOTION_ITEMS_VIEW_URL = "view://278e6dcf-bf22-4e80-83c6-2e3af21f605e";
   var NOTION_MEMBERS_VIEW_URL = "view://e32892f3-c084-46a9-ab33-b1a7fd50ce69";
+  var NOTION_WASTE_DATA_SOURCE_ID = "2ac7b72d-22cf-44a3-844f-86bc046e78e7";
+  var NOTION_WASTE_VIEW_URL = "view://f2b4439d-f210-42a8-950c-b298f545ff3f";
 
   var STATUS_TO_NOTION = { "未定(自動判定に従う)": "未定", "残す": "残す", "検討中": "検討中", "手放し候補": "手放し候補" };
   var STATUS_FROM_NOTION = { "未定": "未定(自動判定に従う)", "残す": "残す", "検討中": "検討中", "手放し候補": "手放し候補" };
@@ -524,6 +527,85 @@
     }).catch(function (err) {
       setSyncStatus("メンバー「" + member.name + "」の削除の同期に失敗しました(" + (err && err.code) + ")", true);
     });
+  }
+
+  // ---------- ゴミ収集カレンダー設定のNotion同期 ----------
+  function wasteRowToRule(row) {
+    var pageId = extractPageId(row.url);
+    var weekdayLabels = [];
+    if (row["曜日"]) { try { weekdayLabels = JSON.parse(row["曜日"]); } catch (e) { weekdayLabels = []; } }
+    var nthLabels = [];
+    if (row["第N週"]) { try { nthLabels = JSON.parse(row["第N週"]); } catch (e) { nthLabels = []; } }
+    return {
+      id: pageId, notionId: pageId,
+      category: row["カテゴリ"] || DISPOSAL_CATEGORY_OPTIONS[0],
+      mode: row["モード"] === "第N週のみ" ? "nth" : "weekly",
+      weekdays: weekdayLabels.map(function (l) { return DOW_LABELS.indexOf(l); }).filter(function (i) { return i >= 0; }),
+      nths: nthLabels.map(function (l) { return parseInt(String(l).replace("第", ""), 10); }).filter(function (n) { return !isNaN(n); })
+    };
+  }
+  function notionLoadWasteSettings() {
+    return queryAllViewRows(NOTION_WASTE_VIEW_URL).then(function (rows) {
+      var active = rows.filter(function (row) { return row["削除済み"] !== "__YES__"; });
+      var muniRow = active.filter(function (row) { return row["設定名"] === "地域設定"; })[0];
+      var ruleRows = active.filter(function (row) { return row["設定名"] !== "地域設定"; });
+      return {
+        municipality: muniRow ? (muniRow["地域名"] || "") : "",
+        municipalityNotionId: muniRow ? extractPageId(muniRow.url) : null,
+        rules: ruleRows.map(wasteRowToRule)
+      };
+    });
+  }
+  function notionSaveMunicipality() {
+    if (wasteState.municipalityNotionId) {
+      window.claude.mcp.callTool(NOTION_SERVER, "notion-update-page", {
+        page_id: wasteState.municipalityNotionId,
+        command: "update_properties",
+        properties: { "地域名": wasteState.municipality }
+      }).catch(function (err) { setSyncStatus("地域設定の同期に失敗しました(" + (err && err.code) + ")", true); });
+    } else {
+      window.claude.mcp.callTool(NOTION_SERVER, "notion-create-pages", {
+        parent: { type: "data_source_id", data_source_id: NOTION_WASTE_DATA_SOURCE_ID },
+        pages: [{ properties: { "設定名": "地域設定", "地域名": wasteState.municipality } }]
+      }).then(function (res) {
+        var created = res.payload && res.payload.pages && res.payload.pages[0];
+        if (created && created.id) wasteState.municipalityNotionId = created.id;
+      }).catch(function (err) { setSyncStatus("地域設定の同期に失敗しました(" + (err && err.code) + ")", true); });
+    }
+  }
+  function wasteRuleToProps(rule) {
+    return {
+      "設定名": rule.category,
+      "カテゴリ": rule.category,
+      "モード": rule.mode === "nth" ? "第N週のみ" : "毎週",
+      "曜日": rule.weekdays.map(function (i) { return DOW_LABELS[i]; }),
+      "第N週": rule.nths.map(function (n) { return "第" + n; })
+    };
+  }
+  function notionCreateWasteRule(rule) {
+    window.claude.mcp.callTool(NOTION_SERVER, "notion-create-pages", {
+      parent: { type: "data_source_id", data_source_id: NOTION_WASTE_DATA_SOURCE_ID },
+      pages: [{ properties: wasteRuleToProps(rule) }]
+    }).then(function (res) {
+      var created = res.payload && res.payload.pages && res.payload.pages[0];
+      if (created && created.id) rule.notionId = created.id;
+    }).catch(function (err) { setSyncStatus("収集ルールの追加の同期に失敗しました(" + (err && err.code) + ")", true); });
+  }
+  function notionUpdateWasteRule(rule) {
+    if (!rule.notionId) { notionCreateWasteRule(rule); return; }
+    window.claude.mcp.callTool(NOTION_SERVER, "notion-update-page", {
+      page_id: rule.notionId,
+      command: "update_properties",
+      properties: wasteRuleToProps(rule)
+    }).catch(function (err) { setSyncStatus("収集ルールの更新の同期に失敗しました(" + (err && err.code) + ")", true); });
+  }
+  function notionSoftDeleteWasteRule(rule) {
+    if (!rule.notionId) return;
+    window.claude.mcp.callTool(NOTION_SERVER, "notion-update-page", {
+      page_id: rule.notionId,
+      command: "update_properties",
+      properties: { "削除済み": "__YES__" }
+    }).catch(function (err) { setSyncStatus("収集ルールの削除の同期に失敗しました(" + (err && err.code) + ")", true); });
   }
 
   function emptySelfChecks() {
@@ -1131,7 +1213,10 @@
         if (c === rule.category) opt.selected = true;
         catSelect.appendChild(opt);
       });
-      catSelect.addEventListener("change", function () { rule.category = catSelect.value; saveWasteSettings(); renderWasteCalendar(); });
+      catSelect.addEventListener("change", function () {
+        rule.category = catSelect.value; saveWasteSettings(); renderWasteCalendar();
+        if (NOTION_ENABLED) notionUpdateWasteRule(rule);
+      });
       row.appendChild(catSelect);
 
       var modeSelect = document.createElement("select");
@@ -1141,7 +1226,10 @@
         if (pair[0] === rule.mode) opt.selected = true;
         modeSelect.appendChild(opt);
       });
-      modeSelect.addEventListener("change", function () { rule.mode = modeSelect.value; saveWasteSettings(); renderWasteRuleList(); renderWasteCalendar(); });
+      modeSelect.addEventListener("change", function () {
+        rule.mode = modeSelect.value; saveWasteSettings(); renderWasteRuleList(); renderWasteCalendar();
+        if (NOTION_ENABLED) notionUpdateWasteRule(rule);
+      });
       row.appendChild(modeSelect);
 
       DOW_LABELS.forEach(function (label, dowIdx) {
@@ -1155,6 +1243,7 @@
           if (cb.checked && pos < 0) rule.weekdays.push(dowIdx);
           if (!cb.checked && pos >= 0) rule.weekdays.splice(pos, 1);
           saveWasteSettings(); renderWasteCalendar();
+          if (NOTION_ENABLED) notionUpdateWasteRule(rule);
         });
         dowLabel.appendChild(cb);
         dowLabel.appendChild(document.createTextNode(label));
@@ -1173,6 +1262,7 @@
             if (cb.checked && pos < 0) rule.nths.push(n);
             if (!cb.checked && pos >= 0) rule.nths.splice(pos, 1);
             saveWasteSettings(); renderWasteCalendar();
+            if (NOTION_ENABLED) notionUpdateWasteRule(rule);
           });
           nthLabel.appendChild(cb);
           nthLabel.appendChild(document.createTextNode("第" + n));
@@ -1185,6 +1275,7 @@
       rmBtn.addEventListener("click", function () {
         wasteState.rules = wasteState.rules.filter(function (r) { return r.id !== rule.id; });
         saveWasteSettings(); renderWasteRuleList(); renderWasteCalendar();
+        if (NOTION_ENABLED) notionSoftDeleteWasteRule(rule);
       });
       row.appendChild(rmBtn);
 
@@ -1252,12 +1343,15 @@
       wasteState.municipality = document.getElementById("wasteMunicipality").value.trim();
       saveWasteSettings();
       renderItems(); // 検索リンクの地域名を更新
+      if (NOTION_ENABLED) notionSaveMunicipality();
     });
     document.getElementById("addWasteRuleBtn").addEventListener("click", function () {
-      wasteState.rules.push({ id: "wr-" + (nextWasteRuleId++), category: DISPOSAL_CATEGORY_OPTIONS[0], mode: "weekly", weekdays: [], nths: [] });
+      var newRule = { id: "wr-" + (nextWasteRuleId++), notionId: null, category: DISPOSAL_CATEGORY_OPTIONS[0], mode: "weekly", weekdays: [], nths: [] };
+      wasteState.rules.push(newRule);
       saveWasteSettings();
       renderWasteRuleList();
       renderWasteCalendar();
+      if (NOTION_ENABLED) notionCreateWasteRule(newRule);
     });
     document.getElementById("wasteCalPrevBtn").addEventListener("click", function () {
       wasteCalendarView.month--;
@@ -1352,9 +1446,11 @@
 
     if (NOTION_ENABLED) {
       setSyncStatus("Notionから読み込んでいます…");
-      Promise.all([notionLoadItems(), notionLoadMembers()]).then(function (results) {
+      Promise.all([notionLoadItems(), notionLoadMembers(), notionLoadWasteSettings()]).then(function (results) {
         state.items = results[0];
         state.members = results[1];
+        wasteState = results[2];
+        document.getElementById("wasteMunicipality").value = wasteState.municipality || "";
         renderAll();
         setSyncStatus("Notionと同期中(他の端末からも同じデータが見えます)");
       }).catch(function (err) {
