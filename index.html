@@ -253,8 +253,7 @@
 
   var state = {
     members: [],
-    items: [], // { id, notionId, name, owner, category, freq, attachment, manualStatus, selfChecks }
-    mindsetResults: {} // 家族メンバー名 -> { answers: [bool], score, type, date } (ローカルのみ・Notion同期なし)
+    items: [] // { id, notionId, name, owner, category, freq, attachment, manualStatus, selfChecks }
   };
   var nextId = 1;
 
@@ -406,7 +405,17 @@
     return queryAllViewRows(NOTION_MEMBERS_VIEW_URL).then(function (rows) {
       return rows.filter(function (row) { return row["削除済み"] !== "__YES__"; }).map(function (row) {
         var pageId = extractPageId(row.url);
-        return { name: row["名前"] || "", notionId: pageId };
+        var mindsetAnswers = null;
+        if (row["断捨離回答"]) {
+          try { mindsetAnswers = JSON.parse(row["断捨離回答"]); } catch (e) { mindsetAnswers = null; }
+        }
+        return {
+          name: row["名前"] || "", notionId: pageId,
+          mindsetScore: typeof row["断捨離スコア"] === "number" ? row["断捨離スコア"] : null,
+          mindsetType: row["断捨離タイプ"] || null,
+          mindsetAnswers: mindsetAnswers,
+          mindsetDate: row["date:断捨離診断日:start"] || null
+        };
       }).filter(function (m) { return m.name; });
     });
   }
@@ -420,6 +429,17 @@
       if (created && created.id) member.notionId = created.id;
     }).catch(function (err) {
       setSyncStatus("メンバー「" + member.name + "」の追加の同期に失敗しました(" + (err && err.code) + ")", true);
+    });
+  }
+
+  function notionUpdateMember(member, changedProps) {
+    if (!member.notionId) return;
+    window.claude.mcp.callTool(NOTION_SERVER, "notion-update-page", {
+      page_id: member.notionId,
+      command: "update_properties",
+      properties: changedProps
+    }).catch(function (err) {
+      setSyncStatus("「" + member.name + "」の診断結果の同期に失敗しました(" + (err && err.code) + ")", true);
     });
   }
 
@@ -521,18 +541,21 @@
     var hoardingSignals = hoardingChecked + (minimalistTotal - minimalistChecked);
     var maxSignals = hoardingTotal + minimalistTotal;
     var score = Math.round((hoardingSignals / maxSignals) * 100);
-    var type, advice;
-    if (score >= 65) {
-      type = "ためこみ傾向タイプ";
-      advice = "物への愛着や「もったいない」という気持ちが強めです。いきなり全部を判断しようとせず、まずは1カテゴリ・1日1個など小さく始めるのがおすすめです。";
-    } else if (score >= 35) {
-      type = "バランス型";
-      advice = "残す物と手放す物をケースバイケースで判断できるタイプです。判断に迷う物だけ、期限を決めて保留にする仕組み(このアプリの保留機能)をうまく使いましょう。";
-    } else {
-      type = "ミニマリスト気質";
-      advice = "物を絞り込むことに抵抗が少ないタイプです。家族の他のメンバーの判断ペースとの違いに配慮しつつ、無理に急かさないようにしましょう。";
-    }
-    return { score: score, type: type, advice: advice };
+    var type = mindsetTypeFromScore(score);
+    return { score: score, type: type };
+  }
+  function mindsetTypeFromScore(score) {
+    if (score >= 65) return "ためこみ傾向タイプ";
+    if (score >= 35) return "バランス型";
+    return "ミニマリスト気質";
+  }
+  function mindsetAdviceForType(type) {
+    if (type === "ためこみ傾向タイプ") return "物への愛着や「もったいない」という気持ちが強めです。いきなり全部を判断しようとせず、まずは1カテゴリ・1日1個など小さく始めるのがおすすめです。";
+    if (type === "バランス型") return "残す物と手放す物をケースバイケースで判断できるタイプです。判断に迷う物だけ、期限を決めて保留にする仕組み(このアプリの保留機能)をうまく使いましょう。";
+    return "物を絞り込むことに抵抗が少ないタイプです。家族の他のメンバーの判断ペースとの違いに配慮しつつ、無理に急かさないようにしましょう。";
+  }
+  function findMemberByName(name) {
+    return state.members.filter(function (m) { return m.name === name; })[0] || null;
   }
   function renderMindsetQuestions(answers) {
     var wrap = document.getElementById("mindsetQuestions");
@@ -552,35 +575,34 @@
   }
   function renderMindsetResultBox(memberName) {
     var box = document.getElementById("mindsetResult");
-    var result = state.mindsetResults[memberName];
-    if (!result) { box.innerHTML = ""; return; }
+    var member = findMemberByName(memberName);
+    if (!member || member.mindsetScore == null || !member.mindsetType) { box.innerHTML = ""; return; }
     box.innerHTML = "";
     var title = document.createElement("div");
     title.style.fontWeight = "600";
-    title.textContent = memberName + "さんの診断結果: " + result.type + "(" + result.score + "/100)";
+    title.textContent = memberName + "さんの診断結果: " + member.mindsetType + "(" + member.mindsetScore + "/100)";
     var adviceEl = document.createElement("div");
     adviceEl.className = "hint";
     adviceEl.style.marginTop = "4px";
-    adviceEl.textContent = result.advice;
+    adviceEl.textContent = mindsetAdviceForType(member.mindsetType);
     box.appendChild(title);
     box.appendChild(adviceEl);
   }
   function renderMindsetMemberSummaryList() {
     var listEl = document.getElementById("mindsetMemberSummaryList");
     listEl.innerHTML = "";
-    var names = Object.keys(state.mindsetResults);
-    if (!names.length) {
+    var diagnosed = state.members.filter(function (m) { return m.mindsetType && m.mindsetScore != null; });
+    if (!diagnosed.length) {
       var empty = document.createElement("span");
       empty.className = "hint"; empty.style.margin = "0";
       empty.textContent = "まだ診断済みのメンバーがいません";
       listEl.appendChild(empty);
       return;
     }
-    names.forEach(function (name) {
-      var r = state.mindsetResults[name];
+    diagnosed.forEach(function (m) {
       var chip = document.createElement("div");
       chip.className = "member-chip";
-      chip.textContent = name + ": " + r.type + "(" + r.score + ")";
+      chip.textContent = m.name + ": " + m.mindsetType + "(" + m.mindsetScore + ")";
       listEl.appendChild(chip);
     });
   }
@@ -601,8 +623,8 @@
       if (current && state.members.some(function (m) { return m.name === current; })) select.value = current;
     }
     var selectedName = select.value;
-    var existing = state.mindsetResults[selectedName];
-    renderMindsetQuestions(existing ? existing.answers : null);
+    var existingMember = findMemberByName(selectedName);
+    renderMindsetQuestions(existingMember ? existingMember.mindsetAnswers : null);
     renderMindsetResultBox(selectedName);
     renderMindsetMemberSummaryList();
   }
@@ -1000,22 +1022,33 @@
 
     document.getElementById("mindsetMemberSelect").addEventListener("change", function () {
       var name = document.getElementById("mindsetMemberSelect").value;
-      var existing = state.mindsetResults[name];
-      renderMindsetQuestions(existing ? existing.answers : null);
+      var existingMember = findMemberByName(name);
+      renderMindsetQuestions(existingMember ? existingMember.mindsetAnswers : null);
       renderMindsetResultBox(name);
     });
     document.getElementById("mindsetSubmitBtn").addEventListener("click", function () {
       var name = document.getElementById("mindsetMemberSelect").value;
-      if (!name) return;
+      var member = findMemberByName(name);
+      if (!member) return;
       var answers = MINDSET_QUESTIONS.map(function (q, i) {
         return document.getElementById("mindsetQ" + i).checked;
       });
       var result = computeMindsetResult(answers);
-      result.answers = answers;
-      result.date = new Date().toISOString().slice(0, 10);
-      state.mindsetResults[name] = result;
+      var dateStr = new Date().toISOString().slice(0, 10);
+      member.mindsetScore = result.score;
+      member.mindsetType = result.type;
+      member.mindsetAnswers = answers;
+      member.mindsetDate = dateStr;
       renderMindsetResultBox(name);
       renderMindsetMemberSummaryList();
+      if (NOTION_ENABLED) {
+        notionUpdateMember(member, {
+          "断捨離タイプ": result.type,
+          "断捨離スコア": result.score,
+          "断捨離回答": JSON.stringify(answers),
+          "date:断捨離診断日:start": dateStr
+        });
+      }
     });
 
     document.getElementById("addItemBtn").addEventListener("click", function () {
