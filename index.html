@@ -87,6 +87,12 @@
   .self-q-row td { background: var(--bg); padding: 12px 16px; }
   .retention-block { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
   .retention-label { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; color: var(--muted); align-items: flex-start; }
+  .breakdown-block { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .breakdown-title { font-size: 0.82rem; font-weight: 600; margin: 0 0 6px; }
+  .breakdown-row { display: flex; justify-content: flex-start; gap: 10px; font-size: 0.8rem; color: var(--muted); padding: 2px 0; }
+  .breakdown-row .bd-value { color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .breakdown-row.bd-total { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 6px; font-weight: 600; color: var(--text); }
+  .breakdown-cap { font-size: 0.8rem; margin-top: 4px; }
   .expand-btn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 0.8rem; padding: 2px 4px; white-space: nowrap; }
   .expand-btn:hover { text-decoration: underline; }
 
@@ -96,6 +102,7 @@
   th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--border); white-space: nowrap; }
   th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); }
   td.name-cell { white-space: normal; max-width: 200px; font-weight: 500; }
+  .qty-input { width: 64px; }
   .badge {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; color: #fff; font-weight: 600;
@@ -132,7 +139,7 @@
       color: var(--muted);
       margin-bottom: 2px;
     }
-    td select, td input[type=text] { width: 100%; box-sizing: border-box; }
+    td select, td input[type=text], td input[type=number] { width: 100%; box-sizing: border-box; }
     .self-q-row td { padding: 10px 12px; }
     /* larger tap targets */
     .status-select, button { min-height: 40px; }
@@ -211,9 +218,10 @@
     <h2>アイテムを追加</h2>
     <div class="row">
       <input type="text" id="itemName" placeholder="品名を入力してEnter(例: 学生時代の教科書)" style="flex:1; min-width:220px;">
+      <input type="number" id="itemQuantity" min="1" value="1" style="width:76px;" title="個数">
       <button type="button" id="addItemBtn">追加</button>
     </div>
-    <p class="hint">まずは品名だけでOKです。所有者・カテゴリ・使用頻度・思い入れ度・自問チェックは、一覧の行から後で設定できます(初期値: 共有 / 月1回程度 / 普通)。</p>
+    <p class="hint">まずは品名と個数だけでOKです。同じ種類・同等品をまとめて1件に登録し、個数で管理できます(例: 「ボールペン」×5)。所有者・カテゴリ・使用頻度・思い入れ度・自問チェックは、一覧の行から後で設定できます(初期値: 共有 / 月1回程度 / 普通 / 個数1)。</p>
   </div>
 
   <div class="panel">
@@ -221,11 +229,12 @@
       <h2 style="margin:0;">アイテム一覧(手放し候補度が高い順)</h2>
       <button type="button" class="secondary" id="clearAllBtn">全て削除</button>
     </div>
+    <p class="hint" style="margin-top:0;">判定横の数値は0〜100の目安スコアです(65以上で「手放し候補」、35〜64で「検討中」、それ未満で「残す」)。使用頻度・思い入れ度を基本に、自問チェックや個数の超過分で加点し、保管期限中・法的な保存義務の可能性がある書類・思い入れが強い場合は安全弁で上限が抑えられます。個数の妥当基準は、各行の▸から「適正数」をモノごとに設定でき、未設定の品目は同カテゴリの合計個数(目安3個以上)で判定されます。カテゴリが「本・書類」の品目では、確定申告等の保存義務・電子化・再取得可否も判定に加わります。内訳は各行の▸から確認できます。</p>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>品名</th><th>所有者</th><th>カテゴリ</th><th>使用頻度</th><th>思い入れ度</th><th>判定</th><th>決定ステータス</th><th>自問</th><th></th>
+            <th>品名</th><th>個数</th><th>判定</th><th>自問</th><th>所有者</th><th>カテゴリ</th><th>使用頻度</th><th>思い入れ度</th><th>決定ステータス</th><th></th>
           </tr>
         </thead>
         <tbody id="itemBody"></tbody>
@@ -370,7 +379,12 @@
       "思い入れ度": item.attachment,
       "自問チェック": selfChecksToLabels(item.selfChecks),
       "決定ステータス": STATUS_TO_NOTION[item.manualStatus] || "未定",
-      "廃棄カテゴリ": item.disposalCategory || ""
+      "廃棄カテゴリ": item.disposalCategory || "",
+      "個数": item.quantity || 1,
+      "適正数": item.properQuantity || null,
+      "法定保存の可能性": item.docLegalFlag ? "__YES__" : "__NO__",
+      "電子化済み": item.docDigitized ? "__YES__" : "__NO__",
+      "別途参照可能": item.docRetrievable ? "__YES__" : "__NO__"
     };
     if (item.retentionUntil) props["date:保管期限:start"] = item.retentionUntil;
     return props;
@@ -379,6 +393,17 @@
   function extractPageId(url) {
     var m = /([0-9a-f]{32})(?:\?.*)?$/i.exec(url || "");
     return m ? m[1] : null;
+  }
+
+  // 真偽値配列(断捨離診断の回答)をテキストプロパティに保存する際のエンコード方式。
+  // JSON.stringify(配列)をそのままテキストプロパティに書き込むと、保存時に
+  // 空文字になって消えてしまう不具合を実機検証で確認したため、JSON形式を避け
+  // 「||」区切りの1/0の単純なテキストで保存する。
+  function encodeBoolList(arr) {
+    return (arr || []).map(function (v) { return v ? "1" : "0"; }).join("||");
+  }
+  function decodeBoolList(str) {
+    return str ? str.split("||").map(function (s) { return s === "1"; }) : null;
   }
 
   function notionRowToItem(row) {
@@ -395,10 +420,15 @@
       category: row["カテゴリ"] || "",
       freq: typeof row["使用頻度"] === "number" ? row["使用頻度"] : 3,
       attachment: typeof row["思い入れ度"] === "number" ? row["思い入れ度"] : 3,
+      quantity: typeof row["個数"] === "number" && row["個数"] >= 1 ? row["個数"] : 1,
+      properQuantity: typeof row["適正数"] === "number" && row["適正数"] >= 1 ? row["適正数"] : null,
       manualStatus: STATUS_FROM_NOTION[row["決定ステータス"]] || MANUAL_STATUS_OPTIONS[0],
       selfChecks: labelsToSelfChecks(selfLabels),
       retentionUntil: row["date:保管期限:start"] || "",
       disposalCategory: row["廃棄カテゴリ"] || "",
+      docLegalFlag: row["法定保存の可能性"] === "__YES__",
+      docDigitized: row["電子化済み"] === "__YES__",
+      docRetrievable: row["別途参照可能"] === "__YES__",
       expanded: false
     };
   }
@@ -480,10 +510,7 @@
     return queryAllViewRows(NOTION_MEMBERS_VIEW_URL).then(function (rows) {
       return rows.filter(function (row) { return row["削除済み"] !== "__YES__"; }).map(function (row) {
         var pageId = extractPageId(row.url);
-        var mindsetAnswers = null;
-        if (row["断捨離回答"]) {
-          try { mindsetAnswers = JSON.parse(row["断捨離回答"]); } catch (e) { mindsetAnswers = null; }
-        }
+        var mindsetAnswers = decodeBoolList(row["断捨離回答"]);
         return {
           name: row["名前"] || "", notionId: pageId,
           mindsetScore: typeof row["断捨離スコア"] === "number" ? row["断捨離スコア"] : null,
@@ -625,27 +652,68 @@
     return item.retentionUntil >= today;
   }
 
-  function computeLetGoScore(freq, attachment, selfChecks, categoryCount, retentionActive) {
+  function computeScoreBreakdown(item, categoryCount, retentionActive) {
+    var freq = item.freq, attachment = item.attachment;
     var nonUse = 5 - freq;
     var nonAttach = 5 - attachment;
-    var baseScore = (nonUse / 5) * 70 + (nonAttach / 5) * 30;
-    var selfQBonus = (selfCheckedCount(selfChecks) / SELF_QUESTIONS.length) * 30;
-    // 数量限定の原則(同じ用途のモノを3つ以上持たない): 同一カテゴリ内の
-    // アイテム数が3以上になると、重複所有のシグナルとして加点する。
-    var categoryBonus = (categoryCount >= 3) ? Math.min((categoryCount - 2) * 8, 20) : 0;
-    var combined = baseScore * 0.7 + selfQBonus + categoryBonus;
-    var score;
+    var useComponent = (nonUse / 5) * 70;
+    var attachComponent = (nonAttach / 5) * 30;
+    var baseScore = useComponent + attachComponent;
+    var selfQBonus = (selfCheckedCount(item.selfChecks) / SELF_QUESTIONS.length) * 30;
+
+    var quantity = item.quantity || 1;
+    var properQuantity = item.properQuantity || null;
+    var categoryBonus, quantityBonusMode, quantityBonusThreshold;
+    if (properQuantity) {
+      // モノごとに「適正数」が指定されている場合は、そのモノ自身の個数超過分を
+      // 加点する(家電・消耗品など、妥当な所持数がモノによって大きく異なるため)。
+      var excess = quantity - properQuantity;
+      categoryBonus = excess > 0 ? Math.min(excess * 8, 20) : 0;
+      quantityBonusMode = "item";
+      quantityBonusThreshold = properQuantity;
+    } else {
+      // 適正数が未設定の場合のデフォルト: 数量限定の原則(同じ用途のモノを
+      // 3つ以上持たない)。同一カテゴリの合計個数が3以上になると加点する。
+      categoryBonus = (categoryCount >= 3) ? Math.min((categoryCount - 2) * 8, 20) : 0;
+      quantityBonusMode = "category";
+      quantityBonusThreshold = 2;
+    }
+    // 書類固有の判定(カテゴリが「本・書類」の品目のみ入力欄を表示)。
+    // 電子化済み・発行元等で再取得可能なら、現物を残す必要性が下がるため加点。
+    var docDigitizedBonus = item.docDigitized ? 10 : 0;
+    var docRetrievableBonus = item.docRetrievable ? 10 : 0;
+    var docBonus = docDigitizedBonus + docRetrievableBonus;
+
+    var combined = baseScore * 0.7 + selfQBonus + categoryBonus + docBonus;
+    var cap = null;
+    var score = combined;
     if (retentionActive) {
       // 保管期限(保証書・書類の保存期限など)が有効な間は、他の要素に関わらず
       // 手放し候補にしない最優先の安全弁(法的・実用的に必要な書類等の誤削除防止)
+      cap = { reason: "retention", limit: 10 };
       score = Math.min(combined, 10);
+    } else if (item.docLegalFlag) {
+      // 確定申告・税務など法定保存の可能性がある書類は、具体的な保管期限が
+      // 未設定でも念のため上限を抑える(retentionより弱いが、思い入れ安全弁より強い)。
+      cap = { reason: "docLegal", limit: 20 };
+      score = Math.min(combined, 20);
     } else if (attachment >= 4) {
       // 思い入れが強いアイテムは、自問やカテゴリ重複の結果を加味しても「手放し候補」までは到達させない(家族バランスの安全弁)
+      cap = { reason: "attachment", limit: 45 };
       score = Math.min(combined, 45);
-    } else {
-      score = combined;
     }
-    return Math.max(0, Math.min(100, Math.round(score)));
+    score = Math.max(0, Math.min(100, Math.round(score)));
+    return {
+      useComponent: useComponent, attachComponent: attachComponent, baseScore: baseScore,
+      selfQBonus: selfQBonus, categoryBonus: categoryBonus,
+      quantityBonusMode: quantityBonusMode, quantityBonusThreshold: quantityBonusThreshold,
+      docBonus: docBonus,
+      combined: combined, cap: cap, score: score
+    };
+  }
+
+  function computeLetGoScore(item, categoryCount, retentionActive) {
+    return computeScoreBreakdown(item, categoryCount, retentionActive).score;
   }
 
   function verdictFromScore(score) {
@@ -654,13 +722,15 @@
     return "残す";
   }
 
-  // 現在のstate.itemsをもとに、カテゴリごとの件数を集計(空欄は除く)。
-  // renderAll()の先頭で更新し、スコア計算や表示から参照する。
+  // 現在のstate.itemsをもとに、カテゴリごとの合計個数を集計(空欄は除く)。
+  // 1アイテムが複数個数を持つ場合はその個数分を加算するため、
+  // 「同じ品を数個持っている」ことと「似た品を何点も持っている」ことの両方を
+  // 同じ合計値で捉えられる。renderAll()の先頭で更新し、スコア計算や表示から参照する。
   var currentCategoryCounts = {};
   function refreshCategoryCounts() {
     currentCategoryCounts = {};
     state.items.forEach(function (item) {
-      if (item.category) currentCategoryCounts[item.category] = (currentCategoryCounts[item.category] || 0) + 1;
+      if (item.category) currentCategoryCounts[item.category] = (currentCategoryCounts[item.category] || 0) + (item.quantity || 1);
     });
   }
   function itemCategoryCount(item) {
@@ -671,7 +741,7 @@
     if (item.manualStatus && item.manualStatus !== MANUAL_STATUS_OPTIONS[0]) {
       return { status: item.manualStatus, manual: true };
     }
-    var score = computeLetGoScore(item.freq, item.attachment, item.selfChecks, itemCategoryCount(item), isRetentionActive(item));
+    var score = computeLetGoScore(item, itemCategoryCount(item), isRetentionActive(item));
     return { status: verdictFromScore(score), manual: false };
   }
 
@@ -888,7 +958,7 @@
     emptyMsg.style.display = state.items.length ? "none" : "block";
 
     var sorted = state.items.slice().sort(function (a, b) {
-      return computeLetGoScore(b.freq, b.attachment, b.selfChecks, itemCategoryCount(b), isRetentionActive(b)) - computeLetGoScore(a.freq, a.attachment, a.selfChecks, itemCategoryCount(a), isRetentionActive(a));
+      return computeLetGoScore(b, itemCategoryCount(b), isRetentionActive(b)) - computeLetGoScore(a, itemCategoryCount(a), isRetentionActive(a));
     });
 
     sorted.forEach(function (item) {
@@ -897,6 +967,22 @@
       var tdName = document.createElement("td");
       tdName.className = "name-cell";
       tdName.textContent = item.name;
+
+      var tdQuantity = document.createElement("td");
+      tdQuantity.setAttribute("data-label", "個数");
+      var quantityInput = document.createElement("input");
+      quantityInput.type = "number";
+      quantityInput.min = "1";
+      quantityInput.className = "status-select qty-input";
+      quantityInput.value = item.quantity || 1;
+      quantityInput.addEventListener("change", function () {
+        var q = parseInt(quantityInput.value, 10);
+        if (!q || q < 1) q = 1;
+        item.quantity = q;
+        renderAll();
+        notionUpdateItem(item, { "個数": item.quantity });
+      });
+      tdQuantity.appendChild(quantityInput);
 
       var tdOwner = document.createElement("td");
       tdOwner.setAttribute("data-label", "所有者");
@@ -926,7 +1012,7 @@
       if (catCount >= 2) {
         var catCountHint = document.createElement("span");
         catCountHint.className = "cat-count-hint";
-        catCountHint.textContent = "(" + catCount + "件)";
+        catCountHint.textContent = "(同カテゴリ合計" + catCount + "個)";
         tdCat.appendChild(catCountHint);
       }
 
@@ -956,7 +1042,7 @@
       });
       tdAttach.appendChild(attachSelect);
 
-      var score = computeLetGoScore(item.freq, item.attachment, item.selfChecks, itemCategoryCount(item), isRetentionActive(item));
+      var score = computeLetGoScore(item, itemCategoryCount(item), isRetentionActive(item));
       var eff = effectiveStatus(item);
 
       var tdVerdict = document.createElement("td");
@@ -1025,13 +1111,14 @@
       tdRm.appendChild(rmBtn);
 
       tr.appendChild(tdName);
+      tr.appendChild(tdQuantity);
+      tr.appendChild(tdVerdict);
+      tr.appendChild(tdExpand);
       tr.appendChild(tdOwner);
       tr.appendChild(tdCat);
       tr.appendChild(tdFreq);
       tr.appendChild(tdAttach);
-      tr.appendChild(tdVerdict);
       tr.appendChild(tdStatus);
-      tr.appendChild(tdExpand);
       tr.appendChild(tdRm);
       body.appendChild(tr);
 
@@ -1039,7 +1126,88 @@
         var expandRow = document.createElement("tr");
         expandRow.className = "self-q-row";
         var expandCell = document.createElement("td");
-        expandCell.colSpan = 9;
+        expandCell.colSpan = 10;
+
+        var breakdown = computeScoreBreakdown(item, itemCategoryCount(item), isRetentionActive(item));
+        var breakdownBlock = document.createElement("div");
+        breakdownBlock.className = "breakdown-block";
+        var breakdownTitle = document.createElement("p");
+        breakdownTitle.className = "breakdown-title";
+        breakdownTitle.textContent = "スコアの内訳(0〜100)";
+        breakdownBlock.appendChild(breakdownTitle);
+
+        function bdRow(label, value, max) {
+          var row = document.createElement("div");
+          row.className = "breakdown-row";
+          var l = document.createElement("span"); l.textContent = label;
+          var v = document.createElement("span"); v.className = "bd-value";
+          v.textContent = Math.round(value) + " / " + max;
+          row.appendChild(l); row.appendChild(v);
+          breakdownBlock.appendChild(row);
+        }
+        bdRow("使用頻度が低いほど加点(満点70)", breakdown.useComponent, 70);
+        bdRow("思い入れが薄いほど加点(満点30)", breakdown.attachComponent, 30);
+        bdRow("↑2つの合計 ×0.7", breakdown.baseScore * 0.7, 70);
+        bdRow("自問チェックの該当数による加点(満点30)", breakdown.selfQBonus, 30);
+
+        var quantityInfoRow = document.createElement("div");
+        quantityInfoRow.className = "breakdown-row";
+        var qLabel = document.createElement("span");
+        qLabel.textContent = "この品目の個数";
+        var qValue = document.createElement("span");
+        qValue.className = "bd-value";
+        qValue.textContent = (item.quantity || 1) + "個";
+        quantityInfoRow.appendChild(qLabel); quantityInfoRow.appendChild(qValue);
+        breakdownBlock.appendChild(quantityInfoRow);
+
+        var properQtyLabel = document.createElement("label");
+        properQtyLabel.className = "retention-label";
+        properQtyLabel.style.marginTop = "4px";
+        properQtyLabel.textContent = "適正数(任意・このモノは何個までなら妥当か)";
+        var properQtyInput = document.createElement("input");
+        properQtyInput.type = "number";
+        properQtyInput.min = "1";
+        properQtyInput.className = "qty-input";
+        properQtyInput.placeholder = "未設定";
+        if (item.properQuantity) properQtyInput.value = item.properQuantity;
+        properQtyInput.addEventListener("change", function () {
+          var v = parseInt(properQtyInput.value, 10);
+          item.properQuantity = (v && v >= 1) ? v : null;
+          renderAll();
+          notionUpdateItem(item, { "適正数": item.properQuantity });
+        });
+        properQtyLabel.appendChild(properQtyInput);
+        breakdownBlock.appendChild(properQtyLabel);
+
+        var quantityBonusLabel = breakdown.quantityBonusMode === "item"
+          ? "この品目の個数超過による加点(適正数" + breakdown.quantityBonusThreshold + "個・満点20)"
+          : "同カテゴリの合計個数による加点(満点20・合計3個以上で加点。適正数未設定時のデフォルト基準)";
+        bdRow(quantityBonusLabel, breakdown.categoryBonus, 20);
+        if (item.category === "本・書類") {
+          bdRow("書類の判定(電子化・再取得可能による加点、満点20)", breakdown.docBonus, 20);
+        }
+        var totalRow = document.createElement("div");
+        totalRow.className = "breakdown-row bd-total";
+        var totalLabel = document.createElement("span");
+        totalLabel.textContent = breakdown.cap ? "安全弁適用前の合計" : "合計(最終スコア)";
+        var totalValue = document.createElement("span");
+        totalValue.className = "bd-value";
+        totalValue.textContent = Math.round(breakdown.combined) + " 点";
+        totalRow.appendChild(totalLabel); totalRow.appendChild(totalValue);
+        breakdownBlock.appendChild(totalRow);
+        if (breakdown.cap) {
+          var capNote = document.createElement("p");
+          capNote.className = "breakdown-cap hint";
+          capNote.style.margin = "4px 0 0";
+          var capReasonText = breakdown.cap.reason === "retention"
+            ? "🔒 保管期限内の安全弁により " + breakdown.cap.limit + "点までに抑制"
+            : breakdown.cap.reason === "docLegal"
+            ? "📎 法的な保存義務の可能性がある安全弁により " + breakdown.cap.limit + "点までに抑制"
+            : "❤️ 思い入れ度が高い場合の安全弁により " + breakdown.cap.limit + "点までに抑制";
+          capNote.textContent = capReasonText + " → 最終スコア " + breakdown.score + "点";
+          breakdownBlock.appendChild(capNote);
+        }
+        expandCell.appendChild(breakdownBlock);
 
         var retentionBlock = document.createElement("div");
         retentionBlock.className = "retention-block";
@@ -1070,6 +1238,52 @@
           retentionBlock.appendChild(retentionActiveTag);
         }
         expandCell.appendChild(retentionBlock);
+
+        if (item.category === "本・書類") {
+          var docBlock = document.createElement("div");
+          docBlock.className = "retention-block";
+          var docTitle = document.createElement("p");
+          docTitle.className = "breakdown-title";
+          docTitle.textContent = "書類の判定";
+          docBlock.appendChild(docTitle);
+
+          function docCheckRow(labelText, checked, onChange) {
+            var row = document.createElement("label");
+            row.className = "self-q-item";
+            var cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.checked = !!checked;
+            cb.addEventListener("change", function () { onChange(cb.checked); });
+            var span = document.createElement("span");
+            span.textContent = labelText;
+            row.appendChild(cb); row.appendChild(span);
+            docBlock.appendChild(row);
+            return row;
+          }
+          docCheckRow("確定申告・税務関連など、法的な保存義務がある可能性がある(未確認なら念のためチェック)", item.docLegalFlag, function (v) {
+            item.docLegalFlag = v;
+            renderAll();
+            notionUpdateItem(item, { "法定保存の可能性": v ? "__YES__" : "__NO__" });
+          });
+          docCheckRow("電子化・スキャン済みで、データとしても保存されている", item.docDigitized, function (v) {
+            item.docDigitized = v;
+            renderAll();
+            notionUpdateItem(item, { "電子化済み": v ? "__YES__" : "__NO__" });
+          });
+          docCheckRow("発行元や別のページ(オンライン明細等)で、必要になれば再取得・参照できる", item.docRetrievable, function (v) {
+            item.docRetrievable = v;
+            renderAll();
+            notionUpdateItem(item, { "別途参照可能": v ? "__YES__" : "__NO__" });
+          });
+
+          var docHint = document.createElement("p");
+          docHint.className = "hint";
+          docHint.style.margin = "6px 0 0";
+          docHint.textContent = "法的な保存義務の可否は書類の種類や個別事情によるため、正確な要否はご自身で確認してください(このチェックは念のための安全弁としてのみ働きます)。「法的な保存義務の可能性」にチェックがあると、具体的な保管期限が未設定でも上限20点までに抑えられます。「電子化済み」「再取得可能」はそれぞれ現物を手放しやすくする方向に加点します。";
+          docBlock.appendChild(docHint);
+
+          expandCell.appendChild(docBlock);
+        }
 
         var disposalBlock = document.createElement("div");
         disposalBlock.className = "retention-block";
@@ -1403,7 +1617,7 @@
         notionUpdateMember(member, {
           "断捨離タイプ": result.type,
           "断捨離スコア": result.score,
-          "断捨離回答": JSON.stringify(answers),
+          "断捨離回答": encodeBoolList(answers),
           "date:断捨離診断日:start": dateStr
         });
       }
@@ -1411,8 +1625,11 @@
 
     document.getElementById("addItemBtn").addEventListener("click", function () {
       var nameInput = document.getElementById("itemName");
+      var quantityInput = document.getElementById("itemQuantity");
       var name = nameInput.value.trim();
       if (!name) return;
+      var quantity = parseInt(quantityInput.value, 10);
+      if (!quantity || quantity < 1) quantity = 1;
       var newItem = {
         id: "temp-" + (nextId++),
         notionId: null,
@@ -1421,19 +1638,28 @@
         category: "",
         freq: 3,
         attachment: 3,
+        quantity: quantity,
+        properQuantity: null,
         manualStatus: MANUAL_STATUS_OPTIONS[0],
         selfChecks: emptySelfChecks(),
         retentionUntil: "",
         disposalCategory: "",
+        docLegalFlag: false,
+        docDigitized: false,
+        docRetrievable: false,
         expanded: false
       };
       state.items.push(newItem);
       nameInput.value = "";
+      quantityInput.value = "1";
       renderAll();
       nameInput.focus();
       if (NOTION_ENABLED) notionCreateItem(newItem);
     });
     document.getElementById("itemName").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") document.getElementById("addItemBtn").click();
+    });
+    document.getElementById("itemQuantity").addEventListener("keydown", function (e) {
       if (e.key === "Enter") document.getElementById("addItemBtn").click();
     });
 
