@@ -42,11 +42,11 @@
     padding: 6px 10px;
     border: 1px solid var(--border);
     border-radius: 6px;
-    background: #fff;
+    background: var(--panel);
   }
   button { cursor: pointer; background: var(--accent); color: #fff; border: none; }
   button:hover { background: var(--accent-dark); }
-  button.secondary { background: #fff; color: var(--text); border: 1px solid var(--border); }
+  button.secondary { background: var(--panel); color: var(--text); border: 1px solid var(--border); }
   .hint { font-size: 0.8rem; color: var(--muted); margin-top: 8px; }
   .hint.sync-error { color: var(--letgo); }
 
@@ -85,9 +85,8 @@
   .waste-rule-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 6px; }
   .waste-rule-row .dow-check { font-size: 0.78rem; margin-right: 6px; }
   .self-q-row td { background: var(--bg); padding: 12px 16px; }
-  .retention-block { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .retention-block, .breakdown-block { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
   .retention-label { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; color: var(--muted); align-items: flex-start; }
-  .breakdown-block { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
   .breakdown-title { font-size: 0.82rem; font-weight: 600; margin: 0 0 6px; }
   .breakdown-row { display: flex; justify-content: flex-start; gap: 10px; font-size: 0.8rem; color: var(--muted); padding: 2px 0; }
   .breakdown-row .bd-value { color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -98,19 +97,30 @@
 
   /* table */
   .table-wrap { max-height: 460px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
-  th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 0.82rem; }
+  th, td { text-align: left; padding: 6px; border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); }
-  td.name-cell { white-space: normal; max-width: 200px; font-weight: 500; }
-  .qty-input { width: 64px; }
+  td.name-cell { white-space: normal; overflow-wrap: break-word; font-weight: 500; }
+  .name-input { font: inherit; width: 100%; border: 1px solid transparent; background: transparent; padding: 2px 4px; border-radius: 4px; color: inherit; }
+  .name-input:hover { border-color: var(--border); }
+  .name-input:focus { border-color: var(--accent); background: var(--panel); outline: none; }
+  td select, td input[type=text], td input[type=number] { width: 100%; box-sizing: border-box; }
+  .qty-input { width: 100%; }
   .badge {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; color: #fff; font-weight: 600;
   }
   .badge .score { font-weight: 400; opacity: 0.85; }
-  .manual-tag { font-size: 0.7rem; color: var(--muted); margin-left: 4px; }
-  .status-select { font-size: 0.8rem; padding: 4px 6px; }
-  .cat-count-hint { font-size: 0.72rem; color: var(--muted); margin-left: 4px; white-space: nowrap; }
+  .manual-tag { display: block; font-size: 0.7rem; color: var(--muted); margin-top: 2px; white-space: normal; }
+  .status-select { font-size: 0.8rem; padding: 4px 6px; text-overflow: ellipsis; }
+  .cat-count-hint { display: block; font-size: 0.72rem; color: var(--muted); margin-top: 2px; white-space: normal; }
+  .method-note { font-size: 0.72rem; color: var(--muted); white-space: normal; margin-top: 4px; }
+  .research-btn {
+    display: block; background: none; border: 1px solid var(--border); color: var(--accent);
+    font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; margin-top: 4px; white-space: normal;
+    text-decoration: none; text-align: center; box-sizing: border-box; cursor: pointer;
+  }
+  .research-btn:hover { background: var(--bg); }
   .rm-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.85rem; padding: 2px 6px; }
   .rm-btn:hover { color: var(--letgo); }
   .empty { color: var(--muted); text-align: center; padding: 30px 0; font-size: 0.9rem; }
@@ -142,7 +152,7 @@
     td select, td input[type=text], td input[type=number] { width: 100%; box-sizing: border-box; }
     .self-q-row td { padding: 10px 12px; }
     /* larger tap targets */
-    .status-select, button { min-height: 40px; }
+    .status-select, button, .research-btn { min-height: 40px; display: flex; align-items: center; justify-content: center; }
     .self-q-item input[type=checkbox] { width: 20px; height: 20px; }
     .expand-btn { padding: 8px 4px; }
   }
@@ -152,8 +162,52 @@
 <div class="layout">
   <div>
     <h1>持ち物整理アドバイザー</h1>
-    <p class="subtitle">「所有者」と「思い入れ度」×「使用頻度」から手放しの候補を提案します。判定はあくまで参考で、最終的な決定は家族での話し合いに委ねます。</p>
+    <p class="subtitle">使用頻度・思い入れ度から手放しの候補を提案します(判定は参考、最終判断は家族で)。</p>
     <p class="hint" id="syncStatus" style="margin-top:0;"></p>
+  </div>
+
+  <div class="panel">
+    <h2>家族メンバー</h2>
+    <div class="member-list" id="memberList"></div>
+    <div class="row">
+      <input type="text" id="memberInput" placeholder="名前を追加(例: お父さん)">
+      <button type="button" id="addMemberBtn">追加</button>
+    </div>
+    <p class="hint">アイテム登録時の「所有者」の選択肢になります。「(共有)」は常に選択できます。</p>
+  </div>
+
+  <div class="panel">
+    <h2>アイテムを追加</h2>
+    <div class="row">
+      <input type="text" id="itemName" placeholder="品名を入力してEnter(例: 学生時代の教科書)" style="flex:1; min-width:220px;">
+      <input type="number" id="itemQuantity" min="1" value="1" style="width:76px;" title="個数">
+      <button type="button" id="addItemBtn">追加</button>
+    </div>
+    <p class="hint">品名と個数だけでOK。所有者・カテゴリなどは一覧の行から後で設定できます。</p>
+  </div>
+
+  <div class="panel">
+    <div class="row between" style="margin-bottom: 4px;">
+      <h2 style="margin:0;">アイテム一覧(手放し候補度が高い順)</h2>
+      <button type="button" class="secondary" id="clearAllBtn">全て削除</button>
+    </div>
+    <p class="hint" style="margin-top:0;">判定横の数値は0〜100の目安スコアです(65以上で「手放し候補」、35〜64で「検討中」)。内訳・詳細設定は各行の▸から確認できます。</p>
+    <div class="table-wrap">
+      <table>
+        <colgroup>
+          <col style="width:15%"><col style="width:6%"><col style="width:15%">
+          <col style="width:9%"><col style="width:10%"><col style="width:10%">
+          <col style="width:10%"><col style="width:9%"><col style="width:12%"><col style="width:4%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>品名</th><th>個数</th><th>判定</th><th>所有者</th><th>カテゴリ</th><th>使用頻度</th><th>思い入れ度</th><th>決定ステータス</th><th>手放し方法</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="itemBody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="emptyMsg">まだアイテムが登録されていません</div>
   </div>
 
   <div class="panel">
@@ -169,18 +223,8 @@
   </div>
 
   <div class="panel">
-    <h2>家族メンバー</h2>
-    <div class="member-list" id="memberList"></div>
-    <div class="row">
-      <input type="text" id="memberInput" placeholder="名前を追加(例: お父さん)">
-      <button type="button" id="addMemberBtn">追加</button>
-    </div>
-    <p class="hint">アイテム登録時の「所有者」の選択肢になります。「(共有)」は常に選択できます。</p>
-  </div>
-
-  <div class="panel">
     <h2>断捨離・ミニマリスト思考チェック</h2>
-    <p class="hint">個々のアイテムを判断する前に、まず自分の傾向を知っておくと整理がしやすくなります。メンバーごとに診断できます(この診断結果はアイテムの手放し候補度スコアには影響しません)。</p>
+    <p class="hint">自分の断捨離傾向をメンバーごとに診断できます(スコアには影響しません)。</p>
     <div class="row">
       <label style="flex:1; min-width:180px;">診断するメンバー
         <select id="mindsetMemberSelect"></select>
@@ -195,7 +239,7 @@
 
   <div class="panel">
     <h2>ゴミ収集カレンダー・廃棄ルール</h2>
-    <p class="hint">初回だけお住まいの地域と収集ルールを設定すれば、以降は毎月自動でカレンダーに反映されます(この設定はこのブラウザ内に保存されます。別の端末からは見えません)。</p>
+    <p class="hint">地域と収集ルールを設定すると、毎月自動でカレンダーに反映されます。</p>
     <div class="row">
       <label style="flex:1; min-width:200px;">お住まいの地域(市区町村)
         <input type="text" id="wasteMunicipality" placeholder="例: 東京都○○区">
@@ -212,35 +256,6 @@
       <button type="button" class="secondary" id="wasteCalNextBtn">次月 ▶</button>
     </div>
     <div id="wasteCalendarGrid" style="margin-top:10px;"></div>
-  </div>
-
-  <div class="panel">
-    <h2>アイテムを追加</h2>
-    <div class="row">
-      <input type="text" id="itemName" placeholder="品名を入力してEnter(例: 学生時代の教科書)" style="flex:1; min-width:220px;">
-      <input type="number" id="itemQuantity" min="1" value="1" style="width:76px;" title="個数">
-      <button type="button" id="addItemBtn">追加</button>
-    </div>
-    <p class="hint">まずは品名と個数だけでOKです。同じ種類・同等品をまとめて1件に登録し、個数で管理できます(例: 「ボールペン」×5)。所有者・カテゴリ・使用頻度・思い入れ度・自問チェックは、一覧の行から後で設定できます(初期値: 共有 / 月1回程度 / 普通 / 個数1)。</p>
-  </div>
-
-  <div class="panel">
-    <div class="row between" style="margin-bottom: 4px;">
-      <h2 style="margin:0;">アイテム一覧(手放し候補度が高い順)</h2>
-      <button type="button" class="secondary" id="clearAllBtn">全て削除</button>
-    </div>
-    <p class="hint" style="margin-top:0;">判定横の数値は0〜100の目安スコアです(65以上で「手放し候補」、35〜64で「検討中」、それ未満で「残す」)。使用頻度・思い入れ度を基本に、自問チェックや個数の超過分で加点し、保管期限中・法的な保存義務の可能性がある書類・思い入れが強い場合は安全弁で上限が抑えられます。個数の妥当基準は、各行の▸から「適正数」をモノごとに設定でき、未設定の品目は同カテゴリの合計個数(目安3個以上)で判定されます。カテゴリが「本・書類」の品目では、確定申告等の保存義務・電子化・再取得可否も判定に加わります。内訳は各行の▸から確認できます。</p>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>品名</th><th>個数</th><th>判定</th><th>自問</th><th>所有者</th><th>カテゴリ</th><th>使用頻度</th><th>思い入れ度</th><th>決定ステータス</th><th></th>
-          </tr>
-        </thead>
-        <tbody id="itemBody"></tbody>
-      </table>
-    </div>
-    <div class="empty" id="emptyMsg">まだアイテムが登録されていません</div>
   </div>
 </div>
 
@@ -278,11 +293,38 @@
 
   var VERDICT_COLOR = { "残す": "var(--keep)", "検討中": "var(--consider)", "手放し候補": "var(--letgo)" };
 
+  // 手放し候補度スコア(0〜100)の各要素の満点・係数・安全弁の上限値。
+  // computeScoreBreakdown()での算出とrenderItems()の内訳表示の両方から参照する。
+  var SCORE_USE_WEIGHT = 70;
+  var SCORE_ATTACH_WEIGHT = 30;
+  var SCORE_BASE_MULTIPLIER = 0.7;
+  var SCORE_SELFQ_MAX = 30;
+  var SCORE_QTY_BONUS_MAX = 20;
+  var SCORE_QTY_BONUS_PER_EXCESS = 8;
+  var SCORE_QTY_CATEGORY_COUNT_THRESHOLD = 3;
+  var SCORE_DOC_BONUS_EACH = 10;
+  var SCORE_DOC_BONUS_MAX = SCORE_DOC_BONUS_EACH * 2;
+  var SCORE_CAP_RETENTION = 10;
+  var SCORE_CAP_DOC_LEGAL = 20;
+  var SCORE_CAP_ATTACHMENT = 45;
+  var ATTACHMENT_CAP_TRIGGER = 4;
+  var VERDICT_LETGO_THRESHOLD = 65;
+  var VERDICT_CONSIDER_THRESHOLD = 35;
+
   // ---------- ゴミ収集カレンダー・廃棄ルール(このブラウザのlocalStorageにのみ保存、Notion同期なし) ----------
   var DISPOSAL_CATEGORY_OPTIONS = [
     "燃えるごみ", "燃えないごみ", "資源ごみ(古紙・古布)", "資源ごみ(びん・かん・ペットボトル)",
     "プラスチック製容器包装", "粗大ごみ", "その他/不明"
   ];
+
+  // 「手放し候補」判定後、実際にどう処分するかの選択肢。「ごみに出す」を選んだ
+  // 場合のみ、既存の廃棄カテゴリ選択+分別ルール検索リンクを表示する。
+  var DISPOSAL_METHOD_OPTIONS = ["ごみに出す", "売る(フリマ・買取)", "譲る・寄付する", "保留(様子見)", "その他"];
+  var DISPOSAL_METHOD_HINTS = {
+    "売る(フリマ・買取)": "フリマ・買取を検討",
+    "譲る・寄付する": "家族・知人や寄付先を検討",
+    "保留(様子見)": "しばらく様子見してから判断"
+  };
   var WASTE_TAG_COLORS = ["#8b6b7a", "#6f4f5d", "#6b8f71", "#c99a3f", "#4f7fa8", "#b3546b", "#8a7f5c"];
   var WASTE_STORAGE_KEY = "mochimono_waste_settings_v1";
   var DOW_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
@@ -318,6 +360,31 @@
   function buildWasteSearchUrl(municipality, category) {
     var q = (municipality || "") + " ゴミ 分別 " + category;
     return "https://www.google.com/search?q=" + encodeURIComponent(q);
+  }
+  function buildSearchUrl(query) {
+    return "https://www.google.com/search?q=" + encodeURIComponent(query);
+  }
+
+  // 「手放し方法」に応じた調査リンク(品名ベース)。それぞれ実体の
+  // <a target="_blank">として直接クリックで開く(window.open()の複数呼び出しは
+  // ポップアップブロック・Artifactのサンドボックスで無反応になることがあるため
+  // 使わない)。「売れるかどうか」「売れ行き」の判断はページの中身を見て
+  // 本人が行うもので、このアプリが自動判定・自動集計するわけではない。
+  function buildResearchLinks(item) {
+    var name = item.name;
+    if (item.disposalMethod === "売る(フリマ・買取)") {
+      return [
+        { label: "🔍 相場を調べる", query: name + " 相場 送料込み (メルカリ OR ラクマ OR ヤフオク)" },
+        { label: "📈 売れ行きを見る", query: name + " メルカリ 売り切れ" }
+      ];
+    }
+    if (item.disposalMethod === "譲る・寄付する") {
+      return [{ label: "🔍 調べる", query: name + " 譲る 寄付 方法" }];
+    }
+    if (item.disposalMethod === "ごみに出す") {
+      return [{ label: "🔍 調べる", query: name + " 捨て方 分別" }];
+    }
+    return [{ label: "🔍 調べる", query: name + " 捨て方" }];
   }
 
   // 「勝手にモノが減る7つの自問」(チェック=手放し方向のシグナル)
@@ -380,6 +447,7 @@
       "自問チェック": selfChecksToLabels(item.selfChecks),
       "決定ステータス": STATUS_TO_NOTION[item.manualStatus] || "未定",
       "廃棄カテゴリ": item.disposalCategory || "",
+      "手放し方法": item.disposalMethod || "",
       "個数": item.quantity || 1,
       "適正数": item.properQuantity || null,
       "法定保存の可能性": item.docLegalFlag ? "__YES__" : "__NO__",
@@ -395,6 +463,17 @@
     return m ? m[1] : null;
   }
 
+  // ソフト削除された行(「削除済み」=__YES__)を除外する。ビューモードでの
+  // クエリは削除フラグでの絞り込みができないため、クライアント側で行う。
+  function filterActiveRows(rows) {
+    return rows.filter(function (row) { return row["削除済み"] !== "__YES__"; });
+  }
+
+  function parseJsonArrayProp(str) {
+    if (!str) return [];
+    try { return JSON.parse(str); } catch (e) { return []; }
+  }
+
   // 真偽値配列(断捨離診断の回答)をテキストプロパティに保存する際のエンコード方式。
   // JSON.stringify(配列)をそのままテキストプロパティに書き込むと、保存時に
   // 空文字になって消えてしまう不具合を実機検証で確認したため、JSON形式を避け
@@ -407,10 +486,7 @@
   }
 
   function notionRowToItem(row) {
-    var selfLabels = [];
-    if (row["自問チェック"]) {
-      try { selfLabels = JSON.parse(row["自問チェック"]); } catch (e) { selfLabels = []; }
-    }
+    var selfLabels = parseJsonArrayProp(row["自問チェック"]);
     var pageId = extractPageId(row.url);
     return {
       id: pageId,
@@ -426,6 +502,7 @@
       selfChecks: labelsToSelfChecks(selfLabels),
       retentionUntil: row["date:保管期限:start"] || "",
       disposalCategory: row["廃棄カテゴリ"] || "",
+      disposalMethod: row["手放し方法"] || "",
       docLegalFlag: row["法定保存の可能性"] === "__YES__",
       docDigitized: row["電子化済み"] === "__YES__",
       docRetrievable: row["別途参照可能"] === "__YES__",
@@ -463,52 +540,67 @@
 
   function notionLoadItems() {
     return queryAllViewRows(NOTION_ITEMS_VIEW_URL).then(function (rows) {
-      return rows.filter(function (row) { return row["削除済み"] !== "__YES__"; }).map(notionRowToItem);
+      return filterActiveRows(rows).map(notionRowToItem);
+    });
+  }
+
+  // 各データ種別のcreate/update/soft-deleteはどれも同じ形(callTool呼び出し+
+  // 失敗時にsetSyncStatusでエラー表示)を繰り返すため、下記の3つの薄いラッパーに集約する。
+  function notionCreatePage(dataSourceId, properties) {
+    return window.claude.mcp.callTool(NOTION_SERVER, "notion-create-pages", {
+      parent: { type: "data_source_id", data_source_id: dataSourceId },
+      pages: [{ properties: properties }]
+    });
+  }
+  function firstCreatedPageId(res) {
+    var created = res.payload && res.payload.pages && res.payload.pages[0];
+    return (created && created.id) || null;
+  }
+  function notionUpdatePage(pageId, properties) {
+    return window.claude.mcp.callTool(NOTION_SERVER, "notion-update-page", {
+      page_id: pageId,
+      command: "update_properties",
+      properties: properties
+    });
+  }
+  function reportSyncFailure(subject, action, err, suffix) {
+    setSyncStatus(subject + "の" + action + "に失敗しました(" + (err && err.code) + ")" + (suffix || ""), true);
+  }
+  function notionSoftDeleteEntity(notionId, subject) {
+    if (!notionId) return;
+    notionUpdatePage(notionId, { "削除済み": "__YES__" }).catch(function (err) {
+      reportSyncFailure(subject, "削除の同期", err);
     });
   }
 
   function notionCreateItem(item) {
     setSyncStatus("追加内容をNotionに同期しています…");
-    window.claude.mcp.callTool(NOTION_SERVER, "notion-create-pages", {
-      parent: { type: "data_source_id", data_source_id: NOTION_DATA_SOURCE_ID },
-      pages: [{ properties: itemToNotionProps(item) }]
-    }).then(function (res) {
-      var created = res.payload && res.payload.pages && res.payload.pages[0];
-      if (created && created.id) {
-        item.id = created.id;
-        item.notionId = created.id;
+    notionCreatePage(NOTION_DATA_SOURCE_ID, itemToNotionProps(item)).then(function (res) {
+      var id = firstCreatedPageId(res);
+      if (id) {
+        item.id = id;
+        item.notionId = id;
       }
       setSyncStatus("Notionと同期中(他の端末からも同じデータが見えます)");
     }).catch(function (err) {
-      setSyncStatus("「" + item.name + "」の追加に失敗しました(" + (err && err.code) + ")。ページを再読み込みして再度お試しください。", true);
+      reportSyncFailure("「" + item.name + "」", "追加", err, "。ページを再読み込みして再度お試しください。");
     });
   }
 
   function notionUpdateItem(item, changedProps) {
     if (!item.notionId) return;
-    window.claude.mcp.callTool(NOTION_SERVER, "notion-update-page", {
-      page_id: item.notionId,
-      command: "update_properties",
-      properties: changedProps
-    }).catch(function (err) {
-      setSyncStatus("「" + item.name + "」の更新の同期に失敗しました(" + (err && err.code) + ")", true);
+    notionUpdatePage(item.notionId, changedProps).catch(function (err) {
+      reportSyncFailure("「" + item.name + "」", "更新の同期", err);
     });
   }
 
   function notionSoftDeleteItem(item) {
-    if (!item.notionId) return;
-    window.claude.mcp.callTool(NOTION_SERVER, "notion-update-page", {
-      page_id: item.notionId,
-      command: "update_properties",
-      properties: { "削除済み": "__YES__" }
-    }).catch(function (err) {
-      setSyncStatus("「" + item.name + "」の削除の同期に失敗しました(" + (err && err.code) + ")", true);
-    });
+    notionSoftDeleteEntity(item.notionId, "「" + item.name + "」");
   }
 
   function notionLoadMembers() {
     return queryAllViewRows(NOTION_MEMBERS_VIEW_URL).then(function (rows) {
-      return rows.filter(function (row) { return row["削除済み"] !== "__YES__"; }).map(function (row) {
+      return filterActiveRows(rows).map(function (row) {
         var pageId = extractPageId(row.url);
         var mindsetAnswers = decodeBoolList(row["断捨離回答"]);
         return {
@@ -523,46 +615,30 @@
   }
 
   function notionCreateMember(member) {
-    window.claude.mcp.callTool(NOTION_SERVER, "notion-create-pages", {
-      parent: { type: "data_source_id", data_source_id: NOTION_MEMBERS_DATA_SOURCE_ID },
-      pages: [{ properties: { "名前": member.name } }]
-    }).then(function (res) {
-      var created = res.payload && res.payload.pages && res.payload.pages[0];
-      if (created && created.id) member.notionId = created.id;
+    notionCreatePage(NOTION_MEMBERS_DATA_SOURCE_ID, { "名前": member.name }).then(function (res) {
+      var id = firstCreatedPageId(res);
+      if (id) member.notionId = id;
     }).catch(function (err) {
-      setSyncStatus("メンバー「" + member.name + "」の追加の同期に失敗しました(" + (err && err.code) + ")", true);
+      reportSyncFailure("メンバー「" + member.name + "」", "追加の同期", err);
     });
   }
 
   function notionUpdateMember(member, changedProps) {
     if (!member.notionId) return;
-    window.claude.mcp.callTool(NOTION_SERVER, "notion-update-page", {
-      page_id: member.notionId,
-      command: "update_properties",
-      properties: changedProps
-    }).catch(function (err) {
-      setSyncStatus("「" + member.name + "」の診断結果の同期に失敗しました(" + (err && err.code) + ")", true);
+    notionUpdatePage(member.notionId, changedProps).catch(function (err) {
+      reportSyncFailure("「" + member.name + "」", "診断結果の同期", err);
     });
   }
 
   function notionSoftDeleteMember(member) {
-    if (!member.notionId) return;
-    window.claude.mcp.callTool(NOTION_SERVER, "notion-update-page", {
-      page_id: member.notionId,
-      command: "update_properties",
-      properties: { "削除済み": "__YES__" }
-    }).catch(function (err) {
-      setSyncStatus("メンバー「" + member.name + "」の削除の同期に失敗しました(" + (err && err.code) + ")", true);
-    });
+    notionSoftDeleteEntity(member.notionId, "メンバー「" + member.name + "」");
   }
 
   // ---------- ゴミ収集カレンダー設定のNotion同期 ----------
   function wasteRowToRule(row) {
     var pageId = extractPageId(row.url);
-    var weekdayLabels = [];
-    if (row["曜日"]) { try { weekdayLabels = JSON.parse(row["曜日"]); } catch (e) { weekdayLabels = []; } }
-    var nthLabels = [];
-    if (row["第N週"]) { try { nthLabels = JSON.parse(row["第N週"]); } catch (e) { nthLabels = []; } }
+    var weekdayLabels = parseJsonArrayProp(row["曜日"]);
+    var nthLabels = parseJsonArrayProp(row["第N週"]);
     return {
       id: pageId, notionId: pageId,
       category: row["カテゴリ"] || DISPOSAL_CATEGORY_OPTIONS[0],
@@ -573,7 +649,7 @@
   }
   function notionLoadWasteSettings() {
     return queryAllViewRows(NOTION_WASTE_VIEW_URL).then(function (rows) {
-      var active = rows.filter(function (row) { return row["削除済み"] !== "__YES__"; });
+      var active = filterActiveRows(rows);
       var muniRow = active.filter(function (row) { return row["設定名"] === "地域設定"; })[0];
       var ruleRows = active.filter(function (row) { return row["設定名"] !== "地域設定"; });
       return {
@@ -585,19 +661,14 @@
   }
   function notionSaveMunicipality() {
     if (wasteState.municipalityNotionId) {
-      window.claude.mcp.callTool(NOTION_SERVER, "notion-update-page", {
-        page_id: wasteState.municipalityNotionId,
-        command: "update_properties",
-        properties: { "地域名": wasteState.municipality }
-      }).catch(function (err) { setSyncStatus("地域設定の同期に失敗しました(" + (err && err.code) + ")", true); });
+      notionUpdatePage(wasteState.municipalityNotionId, { "地域名": wasteState.municipality })
+        .catch(function (err) { reportSyncFailure("地域設定", "同期", err); });
     } else {
-      window.claude.mcp.callTool(NOTION_SERVER, "notion-create-pages", {
-        parent: { type: "data_source_id", data_source_id: NOTION_WASTE_DATA_SOURCE_ID },
-        pages: [{ properties: { "設定名": "地域設定", "地域名": wasteState.municipality } }]
-      }).then(function (res) {
-        var created = res.payload && res.payload.pages && res.payload.pages[0];
-        if (created && created.id) wasteState.municipalityNotionId = created.id;
-      }).catch(function (err) { setSyncStatus("地域設定の同期に失敗しました(" + (err && err.code) + ")", true); });
+      notionCreatePage(NOTION_WASTE_DATA_SOURCE_ID, { "設定名": "地域設定", "地域名": wasteState.municipality })
+        .then(function (res) {
+          var id = firstCreatedPageId(res);
+          if (id) wasteState.municipalityNotionId = id;
+        }).catch(function (err) { reportSyncFailure("地域設定", "同期", err); });
     }
   }
   function wasteRuleToProps(rule) {
@@ -610,29 +681,18 @@
     };
   }
   function notionCreateWasteRule(rule) {
-    window.claude.mcp.callTool(NOTION_SERVER, "notion-create-pages", {
-      parent: { type: "data_source_id", data_source_id: NOTION_WASTE_DATA_SOURCE_ID },
-      pages: [{ properties: wasteRuleToProps(rule) }]
-    }).then(function (res) {
-      var created = res.payload && res.payload.pages && res.payload.pages[0];
-      if (created && created.id) rule.notionId = created.id;
-    }).catch(function (err) { setSyncStatus("収集ルールの追加の同期に失敗しました(" + (err && err.code) + ")", true); });
+    notionCreatePage(NOTION_WASTE_DATA_SOURCE_ID, wasteRuleToProps(rule)).then(function (res) {
+      var id = firstCreatedPageId(res);
+      if (id) rule.notionId = id;
+    }).catch(function (err) { reportSyncFailure("収集ルール", "追加の同期", err); });
   }
   function notionUpdateWasteRule(rule) {
     if (!rule.notionId) { notionCreateWasteRule(rule); return; }
-    window.claude.mcp.callTool(NOTION_SERVER, "notion-update-page", {
-      page_id: rule.notionId,
-      command: "update_properties",
-      properties: wasteRuleToProps(rule)
-    }).catch(function (err) { setSyncStatus("収集ルールの更新の同期に失敗しました(" + (err && err.code) + ")", true); });
+    notionUpdatePage(rule.notionId, wasteRuleToProps(rule))
+      .catch(function (err) { reportSyncFailure("収集ルール", "更新の同期", err); });
   }
   function notionSoftDeleteWasteRule(rule) {
-    if (!rule.notionId) return;
-    window.claude.mcp.callTool(NOTION_SERVER, "notion-update-page", {
-      page_id: rule.notionId,
-      command: "update_properties",
-      properties: { "削除済み": "__YES__" }
-    }).catch(function (err) { setSyncStatus("収集ルールの削除の同期に失敗しました(" + (err && err.code) + ")", true); });
+    notionSoftDeleteEntity(rule.notionId, "収集ルール");
   }
 
   function emptySelfChecks() {
@@ -656,10 +716,10 @@
     var freq = item.freq, attachment = item.attachment;
     var nonUse = 5 - freq;
     var nonAttach = 5 - attachment;
-    var useComponent = (nonUse / 5) * 70;
-    var attachComponent = (nonAttach / 5) * 30;
+    var useComponent = (nonUse / 5) * SCORE_USE_WEIGHT;
+    var attachComponent = (nonAttach / 5) * SCORE_ATTACH_WEIGHT;
     var baseScore = useComponent + attachComponent;
-    var selfQBonus = (selfCheckedCount(item.selfChecks) / SELF_QUESTIONS.length) * 30;
+    var selfQBonus = (selfCheckedCount(item.selfChecks) / SELF_QUESTIONS.length) * SCORE_SELFQ_MAX;
 
     var quantity = item.quantity || 1;
     var properQuantity = item.properQuantity || null;
@@ -668,39 +728,39 @@
       // モノごとに「適正数」が指定されている場合は、そのモノ自身の個数超過分を
       // 加点する(家電・消耗品など、妥当な所持数がモノによって大きく異なるため)。
       var excess = quantity - properQuantity;
-      categoryBonus = excess > 0 ? Math.min(excess * 8, 20) : 0;
+      categoryBonus = excess > 0 ? Math.min(excess * SCORE_QTY_BONUS_PER_EXCESS, SCORE_QTY_BONUS_MAX) : 0;
       quantityBonusMode = "item";
       quantityBonusThreshold = properQuantity;
     } else {
       // 適正数が未設定の場合のデフォルト: 数量限定の原則(同じ用途のモノを
       // 3つ以上持たない)。同一カテゴリの合計個数が3以上になると加点する。
-      categoryBonus = (categoryCount >= 3) ? Math.min((categoryCount - 2) * 8, 20) : 0;
+      categoryBonus = (categoryCount >= SCORE_QTY_CATEGORY_COUNT_THRESHOLD) ? Math.min((categoryCount - 2) * SCORE_QTY_BONUS_PER_EXCESS, SCORE_QTY_BONUS_MAX) : 0;
       quantityBonusMode = "category";
       quantityBonusThreshold = 2;
     }
     // 書類固有の判定(カテゴリが「本・書類」の品目のみ入力欄を表示)。
     // 電子化済み・発行元等で再取得可能なら、現物を残す必要性が下がるため加点。
-    var docDigitizedBonus = item.docDigitized ? 10 : 0;
-    var docRetrievableBonus = item.docRetrievable ? 10 : 0;
+    var docDigitizedBonus = item.docDigitized ? SCORE_DOC_BONUS_EACH : 0;
+    var docRetrievableBonus = item.docRetrievable ? SCORE_DOC_BONUS_EACH : 0;
     var docBonus = docDigitizedBonus + docRetrievableBonus;
 
-    var combined = baseScore * 0.7 + selfQBonus + categoryBonus + docBonus;
+    var combined = baseScore * SCORE_BASE_MULTIPLIER + selfQBonus + categoryBonus + docBonus;
     var cap = null;
     var score = combined;
     if (retentionActive) {
       // 保管期限(保証書・書類の保存期限など)が有効な間は、他の要素に関わらず
       // 手放し候補にしない最優先の安全弁(法的・実用的に必要な書類等の誤削除防止)
-      cap = { reason: "retention", limit: 10 };
-      score = Math.min(combined, 10);
+      cap = { reason: "retention", limit: SCORE_CAP_RETENTION };
+      score = Math.min(combined, SCORE_CAP_RETENTION);
     } else if (item.docLegalFlag) {
       // 確定申告・税務など法定保存の可能性がある書類は、具体的な保管期限が
       // 未設定でも念のため上限を抑える(retentionより弱いが、思い入れ安全弁より強い)。
-      cap = { reason: "docLegal", limit: 20 };
-      score = Math.min(combined, 20);
-    } else if (attachment >= 4) {
+      cap = { reason: "docLegal", limit: SCORE_CAP_DOC_LEGAL };
+      score = Math.min(combined, SCORE_CAP_DOC_LEGAL);
+    } else if (attachment >= ATTACHMENT_CAP_TRIGGER) {
       // 思い入れが強いアイテムは、自問やカテゴリ重複の結果を加味しても「手放し候補」までは到達させない(家族バランスの安全弁)
-      cap = { reason: "attachment", limit: 45 };
-      score = Math.min(combined, 45);
+      cap = { reason: "attachment", limit: SCORE_CAP_ATTACHMENT };
+      score = Math.min(combined, SCORE_CAP_ATTACHMENT);
     }
     score = Math.max(0, Math.min(100, Math.round(score)));
     return {
@@ -717,8 +777,8 @@
   }
 
   function verdictFromScore(score) {
-    if (score >= 65) return "手放し候補";
-    if (score >= 35) return "検討中";
+    if (score >= VERDICT_LETGO_THRESHOLD) return "手放し候補";
+    if (score >= VERDICT_CONSIDER_THRESHOLD) return "検討中";
     return "残す";
   }
 
@@ -768,15 +828,17 @@
     var type = mindsetTypeFromScore(score);
     return { score: score, type: type };
   }
+  var MINDSET_HOARDING_THRESHOLD = 65;
+  var MINDSET_BALANCED_THRESHOLD = 35;
   function mindsetTypeFromScore(score) {
-    if (score >= 65) return "ためこみ傾向タイプ";
-    if (score >= 35) return "バランス型";
+    if (score >= MINDSET_HOARDING_THRESHOLD) return "ためこみ傾向タイプ";
+    if (score >= MINDSET_BALANCED_THRESHOLD) return "バランス型";
     return "ミニマリスト気質";
   }
   function mindsetAdviceForType(type) {
-    if (type === "ためこみ傾向タイプ") return "物への愛着や「もったいない」という気持ちが強めです。いきなり全部を判断しようとせず、まずは1カテゴリ・1日1個など小さく始めるのがおすすめです。";
-    if (type === "バランス型") return "残す物と手放す物をケースバイケースで判断できるタイプです。判断に迷う物だけ、期限を決めて保留にする仕組み(このアプリの保留機能)をうまく使いましょう。";
-    return "物を絞り込むことに抵抗が少ないタイプです。家族の他のメンバーの判断ペースとの違いに配慮しつつ、無理に急かさないようにしましょう。";
+    if (type === "ためこみ傾向タイプ") return "「もったいない」の気持ちが強めです。まずは1カテゴリ・1日1個など小さく始めましょう。";
+    if (type === "バランス型") return "ケースバイケースで判断できるタイプです。迷う物は「手放し方法」を保留にして様子見しましょう。";
+    return "物を絞り込むことに抵抗が少ないタイプです。他のメンバーの判断ペースにも配慮しましょう。";
   }
   function findMemberByName(name) {
     return state.members.filter(function (m) { return m.name === name; })[0] || null;
@@ -835,14 +897,10 @@
     var current = select.value;
     select.innerHTML = "";
     if (!state.members.length) {
-      var opt = document.createElement("option");
-      opt.value = ""; opt.textContent = "(先に家族メンバーを登録してください)";
-      select.appendChild(opt);
+      addOption(select, "", "(先に家族メンバーを登録してください)");
     } else {
       state.members.forEach(function (m) {
-        var opt = document.createElement("option");
-        opt.value = m.name; opt.textContent = m.name;
-        select.appendChild(opt);
+        addOption(select, m.name, m.name);
       });
       if (current && state.members.some(function (m) { return m.name === current; })) select.value = current;
     }
@@ -853,6 +911,17 @@
     renderMindsetMemberSummaryList();
   }
 
+
+  // <option>を1個追加する共通ヘルパー。各種selectの選択肢生成で繰り返されていた
+  // createElement/value/textContent/appendChildの4行を1呼び出しにまとめる。
+  function addOption(select, value, text, isSelected) {
+    var opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = text;
+    if (isSelected) opt.selected = true;
+    select.appendChild(opt);
+    return opt;
+  }
 
   // Owner options always include: SHARED_OWNER, the managed member list, and
   // any owner name already used by a loaded item (so a name never renders
@@ -868,14 +937,9 @@
   function renderOwnerSelect(select) {
     var current = select.value;
     select.innerHTML = "";
-    var sharedOpt = document.createElement("option");
-    sharedOpt.value = SHARED_OWNER;
-    sharedOpt.textContent = SHARED_OWNER;
-    select.appendChild(sharedOpt);
+    addOption(select, SHARED_OWNER, SHARED_OWNER);
     knownOwnerNames().forEach(function (name) {
-      var opt = document.createElement("option");
-      opt.value = name; opt.textContent = name;
-      select.appendChild(opt);
+      addOption(select, name, name);
     });
     if (current) select.value = current;
   }
@@ -892,14 +956,9 @@
 
   function renderCategorySelect(select, currentValue) {
     select.innerHTML = "";
-    var emptyOpt = document.createElement("option");
-    emptyOpt.value = "";
-    emptyOpt.textContent = "(未設定)";
-    select.appendChild(emptyOpt);
+    addOption(select, "", "(未設定)");
     knownCategoryNames().forEach(function (name) {
-      var opt = document.createElement("option");
-      opt.value = name; opt.textContent = name;
-      select.appendChild(opt);
+      addOption(select, name, name);
     });
     select.value = currentValue || "";
   }
@@ -944,11 +1003,468 @@
   function renderSelectOptions(select, options, labelFn, valueFn) {
     select.innerHTML = "";
     options.forEach(function (o) {
-      var opt = document.createElement("option");
-      opt.value = valueFn(o);
-      opt.textContent = labelFn(o);
-      select.appendChild(opt);
+      addOption(select, valueFn(o), labelFn(o));
     });
+  }
+
+  // アイテムの1フィールドを更新する共通パターン(state更新→再描画→Notion同期)。
+  // renderItems以下の各種フィールド編集ハンドラで繰り返されていたためまとめる。
+  function commitItemChange(item, mutateFn, notionPropsFn) {
+    mutateFn();
+    renderAll();
+    notionUpdateItem(item, notionPropsFn());
+  }
+
+  // 一覧の列・▸詳細の両方から使う「手放し方法」セレクト。選ぶと備考(ヒント/
+  // 分別カテゴリ)がすぐ下に表示されるよう、呼び出し側でrenderAll()が再描画する。
+  function buildDisposalMethodSelect(item) {
+    var select = document.createElement("select");
+    select.className = "status-select";
+    addOption(select, "", "未設定");
+    DISPOSAL_METHOD_OPTIONS.forEach(function (m) {
+      addOption(select, m, m, m === item.disposalMethod);
+    });
+    select.addEventListener("change", function () {
+      commitItemChange(item, function () {
+        item.disposalMethod = select.value;
+      }, function () { return { "手放し方法": item.disposalMethod }; });
+    });
+    return select;
+  }
+
+  function buildItemRow(item) {
+    var tr = document.createElement("tr");
+
+    var tdName = document.createElement("td");
+    tdName.className = "name-cell";
+    var nameInputCell = document.createElement("input");
+    nameInputCell.type = "text";
+    nameInputCell.className = "name-input";
+    nameInputCell.value = item.name;
+    nameInputCell.addEventListener("change", function () {
+      var newName = nameInputCell.value.trim();
+      if (!newName) { nameInputCell.value = item.name; return; }
+      commitItemChange(item, function () {
+        item.name = newName;
+      }, function () { return { "品名": item.name }; });
+    });
+    tdName.appendChild(nameInputCell);
+
+    var tdQuantity = document.createElement("td");
+    tdQuantity.setAttribute("data-label", "個数");
+    var quantityInput = document.createElement("input");
+    quantityInput.type = "number";
+    quantityInput.min = "1";
+    quantityInput.className = "status-select qty-input";
+    quantityInput.value = item.quantity || 1;
+    quantityInput.addEventListener("change", function () {
+      commitItemChange(item, function () {
+        var q = parseInt(quantityInput.value, 10);
+        if (!q || q < 1) q = 1;
+        item.quantity = q;
+      }, function () { return { "個数": item.quantity }; });
+    });
+    tdQuantity.appendChild(quantityInput);
+
+    var tdOwner = document.createElement("td");
+    tdOwner.setAttribute("data-label", "所有者");
+    var ownerSelect = document.createElement("select");
+    ownerSelect.className = "status-select";
+    renderOwnerSelect(ownerSelect);
+    ownerSelect.value = item.owner;
+    ownerSelect.addEventListener("change", function () {
+      commitItemChange(item, function () {
+        item.owner = ownerSelect.value;
+      }, function () { return { "所有者": item.owner }; });
+    });
+    tdOwner.appendChild(ownerSelect);
+
+    var tdCat = document.createElement("td");
+    tdCat.setAttribute("data-label", "カテゴリ");
+    var catSelect = document.createElement("select");
+    catSelect.className = "status-select";
+    renderCategorySelect(catSelect, item.category);
+    catSelect.addEventListener("change", function () {
+      commitItemChange(item, function () {
+        item.category = catSelect.value;
+      }, function () { return { "カテゴリ": item.category }; });
+    });
+    tdCat.appendChild(catSelect);
+    var catCount = itemCategoryCount(item);
+    if (catCount >= 2) {
+      var catCountHint = document.createElement("span");
+      catCountHint.className = "cat-count-hint";
+      catCountHint.textContent = "(同カテゴリ合計" + catCount + "個)";
+      tdCat.appendChild(catCountHint);
+    }
+
+    var tdFreq = document.createElement("td");
+    tdFreq.setAttribute("data-label", "使用頻度");
+    var freqSelect = document.createElement("select");
+    freqSelect.className = "status-select";
+    renderSelectOptions(freqSelect, FREQ_OPTIONS, function (o) { return o.label; }, function (o) { return o.value; });
+    freqSelect.value = item.freq;
+    freqSelect.addEventListener("change", function () {
+      commitItemChange(item, function () {
+        item.freq = parseInt(freqSelect.value, 10);
+      }, function () { return { "使用頻度": item.freq }; });
+    });
+    tdFreq.appendChild(freqSelect);
+
+    var tdAttach = document.createElement("td");
+    tdAttach.setAttribute("data-label", "思い入れ度");
+    var attachSelect = document.createElement("select");
+    attachSelect.className = "status-select";
+    renderSelectOptions(attachSelect, ATTACHMENT_OPTIONS, function (o) { return o.label; }, function (o) { return o.value; });
+    attachSelect.value = item.attachment;
+    attachSelect.addEventListener("change", function () {
+      commitItemChange(item, function () {
+        item.attachment = parseInt(attachSelect.value, 10);
+      }, function () { return { "思い入れ度": item.attachment }; });
+    });
+    tdAttach.appendChild(attachSelect);
+
+    var score = computeLetGoScore(item, itemCategoryCount(item), isRetentionActive(item));
+    var eff = effectiveStatus(item);
+
+    var tdVerdict = document.createElement("td");
+    tdVerdict.setAttribute("data-label", "判定");
+    var badge = document.createElement("span");
+    badge.className = "badge";
+    badge.style.background = VERDICT_COLOR[eff.status] || "#999";
+    var scoreSpan = document.createElement("span");
+    scoreSpan.className = "score";
+    scoreSpan.textContent = "(" + score + ")";
+    badge.textContent = eff.status + " ";
+    badge.appendChild(scoreSpan);
+    tdVerdict.appendChild(badge);
+    if (eff.manual) {
+      var tag = document.createElement("span");
+      tag.className = "manual-tag";
+      tag.textContent = "手動";
+      tdVerdict.appendChild(tag);
+    }
+    if (isRetentionActive(item)) {
+      var retentionTag = document.createElement("span");
+      retentionTag.className = "manual-tag";
+      retentionTag.textContent = "🔒保管期限内";
+      tdVerdict.appendChild(retentionTag);
+    }
+    var expandBtn = document.createElement("button");
+    expandBtn.className = "expand-btn";
+    expandBtn.type = "button";
+    expandBtn.style.display = "block";
+    var checkedCount = selfCheckedCount(item.selfChecks);
+    expandBtn.textContent = (item.expanded ? "▾ " : "▸ ") + "自問" + checkedCount + "/" + SELF_QUESTIONS.length;
+    expandBtn.addEventListener("click", function () {
+      item.expanded = !item.expanded;
+      renderAll();
+    });
+    tdVerdict.appendChild(expandBtn);
+
+    var tdStatus = document.createElement("td");
+    tdStatus.setAttribute("data-label", "決定ステータス");
+    var statusSelect = document.createElement("select");
+    statusSelect.className = "status-select";
+    MANUAL_STATUS_OPTIONS.forEach(function (s) {
+      addOption(statusSelect, s, s, s === item.manualStatus);
+    });
+    statusSelect.addEventListener("change", function () {
+      commitItemChange(item, function () {
+        item.manualStatus = statusSelect.value;
+      }, function () { return { "決定ステータス": STATUS_TO_NOTION[item.manualStatus] || "未定" }; });
+    });
+    tdStatus.appendChild(statusSelect);
+
+    var tdMethod = document.createElement("td");
+    tdMethod.setAttribute("data-label", "手放し方法");
+    tdMethod.appendChild(buildDisposalMethodSelect(item));
+    var methodNoteText = item.disposalMethod === "ごみに出す"
+      ? (item.disposalCategory || "分別カテゴリ未設定")
+      : DISPOSAL_METHOD_HINTS[item.disposalMethod];
+    if (methodNoteText) {
+      var methodNote = document.createElement("div");
+      methodNote.className = "method-note";
+      methodNote.textContent = methodNoteText;
+      tdMethod.appendChild(methodNote);
+    }
+    buildResearchLinks(item).forEach(function (link) {
+      var researchLink = document.createElement("a");
+      researchLink.className = "research-btn";
+      researchLink.href = buildSearchUrl(link.query);
+      researchLink.target = "_blank";
+      researchLink.rel = "noopener noreferrer";
+      researchLink.title = "新しいタブで検索: " + link.query;
+      researchLink.textContent = link.label;
+      tdMethod.appendChild(researchLink);
+    });
+
+    var tdRm = document.createElement("td");
+    var rmBtn = document.createElement("button");
+    rmBtn.className = "rm-btn";
+    rmBtn.type = "button";
+    rmBtn.textContent = "削除";
+    rmBtn.addEventListener("click", function () {
+      state.items = state.items.filter(function (i) { return i.id !== item.id; });
+      renderAll();
+      notionSoftDeleteItem(item);
+    });
+    tdRm.appendChild(rmBtn);
+
+    tr.appendChild(tdName);
+    tr.appendChild(tdQuantity);
+    tr.appendChild(tdVerdict);
+    tr.appendChild(tdOwner);
+    tr.appendChild(tdCat);
+    tr.appendChild(tdFreq);
+    tr.appendChild(tdAttach);
+    tr.appendChild(tdStatus);
+    tr.appendChild(tdMethod);
+    tr.appendChild(tdRm);
+    return tr;
+  }
+
+  function buildScoreBreakdownBlock(item) {
+    var breakdown = computeScoreBreakdown(item, itemCategoryCount(item), isRetentionActive(item));
+    var breakdownBlock = document.createElement("div");
+    breakdownBlock.className = "breakdown-block";
+    var breakdownTitle = document.createElement("p");
+    breakdownTitle.className = "breakdown-title";
+    breakdownTitle.textContent = "スコアの内訳(0〜100)";
+    breakdownBlock.appendChild(breakdownTitle);
+
+    function bdRow(label, value, max) {
+      var row = document.createElement("div");
+      row.className = "breakdown-row";
+      var l = document.createElement("span"); l.textContent = label;
+      var v = document.createElement("span"); v.className = "bd-value";
+      v.textContent = Math.round(value) + " / " + max;
+      row.appendChild(l); row.appendChild(v);
+      breakdownBlock.appendChild(row);
+    }
+    bdRow("使用頻度が低いほど加点(満点" + SCORE_USE_WEIGHT + ")", breakdown.useComponent, SCORE_USE_WEIGHT);
+    bdRow("思い入れが薄いほど加点(満点" + SCORE_ATTACH_WEIGHT + ")", breakdown.attachComponent, SCORE_ATTACH_WEIGHT);
+    bdRow("↑2つの合計 ×" + SCORE_BASE_MULTIPLIER, breakdown.baseScore * SCORE_BASE_MULTIPLIER, (SCORE_USE_WEIGHT + SCORE_ATTACH_WEIGHT) * SCORE_BASE_MULTIPLIER);
+    bdRow("自問チェックの該当数による加点(満点" + SCORE_SELFQ_MAX + ")", breakdown.selfQBonus, SCORE_SELFQ_MAX);
+
+    var quantityInfoRow = document.createElement("div");
+    quantityInfoRow.className = "breakdown-row";
+    var qLabel = document.createElement("span");
+    qLabel.textContent = "この品目の個数";
+    var qValue = document.createElement("span");
+    qValue.className = "bd-value";
+    qValue.textContent = (item.quantity || 1) + "個";
+    quantityInfoRow.appendChild(qLabel); quantityInfoRow.appendChild(qValue);
+    breakdownBlock.appendChild(quantityInfoRow);
+
+    var properQtyLabel = document.createElement("label");
+    properQtyLabel.className = "retention-label";
+    properQtyLabel.style.marginTop = "4px";
+    properQtyLabel.textContent = "適正数(任意・このモノは何個までなら妥当か)";
+    var properQtyInput = document.createElement("input");
+    properQtyInput.type = "number";
+    properQtyInput.min = "1";
+    properQtyInput.className = "qty-input";
+    properQtyInput.placeholder = "未設定";
+    if (item.properQuantity) properQtyInput.value = item.properQuantity;
+    properQtyInput.addEventListener("change", function () {
+      commitItemChange(item, function () {
+        var v = parseInt(properQtyInput.value, 10);
+        item.properQuantity = (v && v >= 1) ? v : null;
+      }, function () { return { "適正数": item.properQuantity }; });
+    });
+    properQtyLabel.appendChild(properQtyInput);
+    breakdownBlock.appendChild(properQtyLabel);
+
+    var quantityBonusLabel = breakdown.quantityBonusMode === "item"
+      ? "この品目の個数超過による加点(適正数" + breakdown.quantityBonusThreshold + "個・満点" + SCORE_QTY_BONUS_MAX + ")"
+      : "同カテゴリの合計個数による加点(満点" + SCORE_QTY_BONUS_MAX + "・合計" + SCORE_QTY_CATEGORY_COUNT_THRESHOLD + "個以上で加点。適正数未設定時のデフォルト基準)";
+    bdRow(quantityBonusLabel, breakdown.categoryBonus, SCORE_QTY_BONUS_MAX);
+    if (item.category === "本・書類") {
+      bdRow("書類の判定(電子化・再取得可能による加点、満点" + SCORE_DOC_BONUS_MAX + ")", breakdown.docBonus, SCORE_DOC_BONUS_MAX);
+    }
+    var totalRow = document.createElement("div");
+    totalRow.className = "breakdown-row bd-total";
+    var totalLabel = document.createElement("span");
+    totalLabel.textContent = breakdown.cap ? "安全弁適用前の合計" : "合計(最終スコア)";
+    var totalValue = document.createElement("span");
+    totalValue.className = "bd-value";
+    totalValue.textContent = Math.round(breakdown.combined) + " 点";
+    totalRow.appendChild(totalLabel); totalRow.appendChild(totalValue);
+    breakdownBlock.appendChild(totalRow);
+    if (breakdown.cap) {
+      var capNote = document.createElement("p");
+      capNote.className = "breakdown-cap hint";
+      capNote.style.margin = "4px 0 0";
+      var capReasonText = breakdown.cap.reason === "retention"
+        ? "🔒 保管期限内の安全弁により " + breakdown.cap.limit + "点までに抑制"
+        : breakdown.cap.reason === "docLegal"
+        ? "📎 法的な保存義務の可能性がある安全弁により " + breakdown.cap.limit + "点までに抑制"
+        : "❤️ 思い入れ度が高い場合の安全弁により " + breakdown.cap.limit + "点までに抑制";
+      capNote.textContent = capReasonText + " → 最終スコア " + breakdown.score + "点";
+      breakdownBlock.appendChild(capNote);
+    }
+    return breakdownBlock;
+  }
+
+  function buildRetentionBlock(item) {
+    var retentionBlock = document.createElement("div");
+    retentionBlock.className = "retention-block";
+    var retentionLabel = document.createElement("label");
+    retentionLabel.className = "retention-label";
+    retentionLabel.textContent = "保管期限(任意・保証書や書類の保存期限など)";
+    var retentionInput = document.createElement("input");
+    retentionInput.type = "date";
+    retentionInput.value = item.retentionUntil || "";
+    retentionInput.addEventListener("change", function () {
+      commitItemChange(item, function () {
+        item.retentionUntil = retentionInput.value || "";
+      }, function () { return { "date:保管期限:start": item.retentionUntil || null }; });
+    });
+    retentionLabel.appendChild(retentionInput);
+    retentionBlock.appendChild(retentionLabel);
+    var retentionHint = document.createElement("p");
+    retentionHint.className = "hint";
+    retentionHint.style.margin = "6px 0 0";
+    retentionHint.textContent = "目安(正確な期間は公式情報を確認): 確定申告書類5〜7年、契約書5年、医療費領収書5年、保証書は記載期間まで。";
+    retentionBlock.appendChild(retentionHint);
+    if (isRetentionActive(item)) {
+      var retentionActiveTag = document.createElement("p");
+      retentionActiveTag.className = "hint";
+      retentionActiveTag.style.margin = "6px 0 0";
+      retentionActiveTag.style.color = "var(--keep)";
+      retentionActiveTag.textContent = "🔒 保管期限内のため、手放し候補にはなりません。";
+      retentionBlock.appendChild(retentionActiveTag);
+    }
+    return retentionBlock;
+  }
+
+  function buildDocBlock(item) {
+    var docBlock = document.createElement("div");
+    docBlock.className = "retention-block";
+    var docTitle = document.createElement("p");
+    docTitle.className = "breakdown-title";
+    docTitle.textContent = "書類の判定";
+    docBlock.appendChild(docTitle);
+
+    function docCheckRow(labelText, checked, mutateFn, notionPropsFn) {
+      var row = document.createElement("label");
+      row.className = "self-q-item";
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!checked;
+      cb.addEventListener("change", function () {
+        commitItemChange(item, function () { mutateFn(cb.checked); }, notionPropsFn);
+      });
+      var span = document.createElement("span");
+      span.textContent = labelText;
+      row.appendChild(cb); row.appendChild(span);
+      docBlock.appendChild(row);
+      return row;
+    }
+    docCheckRow("確定申告・税務関連など、法的な保存義務がある可能性がある(未確認なら念のためチェック)", item.docLegalFlag, function (v) {
+      item.docLegalFlag = v;
+    }, function () { return { "法定保存の可能性": item.docLegalFlag ? "__YES__" : "__NO__" }; });
+    docCheckRow("電子化・スキャン済みで、データとしても保存されている", item.docDigitized, function (v) {
+      item.docDigitized = v;
+    }, function () { return { "電子化済み": item.docDigitized ? "__YES__" : "__NO__" }; });
+    docCheckRow("発行元や別のページ(オンライン明細等)で、必要になれば再取得・参照できる", item.docRetrievable, function (v) {
+      item.docRetrievable = v;
+    }, function () { return { "別途参照可能": item.docRetrievable ? "__YES__" : "__NO__" }; });
+
+    var docHint = document.createElement("p");
+    docHint.className = "hint";
+    docHint.style.margin = "6px 0 0";
+    docHint.textContent = "正確な保存義務は個別に確認を。チェックがあると誤って手放し候補にならないよう上限を抑えます。";
+    docBlock.appendChild(docHint);
+
+    return docBlock;
+  }
+
+  // 「手放し方法」欄は一覧の列に移動済み。この▸詳細ブロックは、方法が
+  // 「ごみに出す」の場合の分別カテゴリ選択+検索リンクのみを担当する
+  // (該当しない場合はnullを返し、呼び出し側で追加しない)。
+  function buildDisposalBlock(item) {
+    if (item.disposalMethod === "売る(フリマ・買取)") {
+      var sellBlock = document.createElement("div");
+      sellBlock.className = "retention-block";
+      var sellNote = document.createElement("p");
+      sellNote.className = "hint";
+      sellNote.style.margin = "0";
+      sellNote.textContent = "「売れ行きを見る」で売り切れ件数や直近の日付を見ると、売れやすさの目安になります。実際に売れるか・どのくらいの期間で売れるかは自動判定できないため、開いた検索結果を見て判断してください。";
+      sellBlock.appendChild(sellNote);
+      return sellBlock;
+    }
+    if (item.disposalMethod !== "ごみに出す") return null;
+    var disposalBlock = document.createElement("div");
+    disposalBlock.className = "retention-block";
+    var catLabel = document.createElement("label");
+    catLabel.className = "retention-label";
+    catLabel.textContent = "ごみの分別カテゴリ";
+    var disposalSelect = document.createElement("select");
+    disposalSelect.className = "status-select";
+    addOption(disposalSelect, "", "未設定");
+    DISPOSAL_CATEGORY_OPTIONS.forEach(function (c) {
+      addOption(disposalSelect, c, c, c === item.disposalCategory);
+    });
+    disposalSelect.addEventListener("change", function () {
+      commitItemChange(item, function () {
+        item.disposalCategory = disposalSelect.value;
+      }, function () { return { "廃棄カテゴリ": item.disposalCategory }; });
+    });
+    catLabel.appendChild(disposalSelect);
+    disposalBlock.appendChild(catLabel);
+    if (item.disposalCategory) {
+      var disposalLink = document.createElement("a");
+      disposalLink.href = buildWasteSearchUrl(wasteState.municipality, item.disposalCategory);
+      disposalLink.target = "_blank";
+      disposalLink.rel = "noopener noreferrer";
+      disposalLink.className = "hint";
+      disposalLink.style.display = "inline-block";
+      disposalLink.style.marginTop = "4px";
+      disposalLink.textContent = (wasteState.municipality || "お住まいの地域") + "の「" + item.disposalCategory + "」の分別ルールを検索 →";
+      disposalBlock.appendChild(disposalLink);
+    }
+    return disposalBlock;
+  }
+
+  function buildSelfCheckList(item) {
+    var list = document.createElement("div");
+    list.className = "self-q-list";
+    if (!item.selfChecks) item.selfChecks = emptySelfChecks();
+    SELF_QUESTIONS.forEach(function (q) {
+      var row = document.createElement("label");
+      row.className = "self-q-item";
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!item.selfChecks[q.id];
+      cb.addEventListener("change", function () {
+        commitItemChange(item, function () {
+          item.selfChecks[q.id] = cb.checked;
+        }, function () { return { "自問チェック": selfChecksToLabels(item.selfChecks) }; });
+      });
+      var span = document.createElement("span");
+      span.textContent = q.label;
+      row.appendChild(cb);
+      row.appendChild(span);
+      list.appendChild(row);
+    });
+    return list;
+  }
+
+  function buildItemDetailRow(item) {
+    var expandRow = document.createElement("tr");
+    expandRow.className = "self-q-row";
+    var expandCell = document.createElement("td");
+    expandCell.colSpan = 10;
+    expandCell.appendChild(buildScoreBreakdownBlock(item));
+    expandCell.appendChild(buildRetentionBlock(item));
+    if (item.category === "本・書類") expandCell.appendChild(buildDocBlock(item));
+    var disposalBlock = buildDisposalBlock(item);
+    if (disposalBlock) expandCell.appendChild(disposalBlock);
+    expandCell.appendChild(buildSelfCheckList(item));
+    expandRow.appendChild(expandCell);
+    return expandRow;
   }
 
   function renderItems() {
@@ -962,394 +1478,8 @@
     });
 
     sorted.forEach(function (item) {
-      var tr = document.createElement("tr");
-
-      var tdName = document.createElement("td");
-      tdName.className = "name-cell";
-      tdName.textContent = item.name;
-
-      var tdQuantity = document.createElement("td");
-      tdQuantity.setAttribute("data-label", "個数");
-      var quantityInput = document.createElement("input");
-      quantityInput.type = "number";
-      quantityInput.min = "1";
-      quantityInput.className = "status-select qty-input";
-      quantityInput.value = item.quantity || 1;
-      quantityInput.addEventListener("change", function () {
-        var q = parseInt(quantityInput.value, 10);
-        if (!q || q < 1) q = 1;
-        item.quantity = q;
-        renderAll();
-        notionUpdateItem(item, { "個数": item.quantity });
-      });
-      tdQuantity.appendChild(quantityInput);
-
-      var tdOwner = document.createElement("td");
-      tdOwner.setAttribute("data-label", "所有者");
-      var ownerSelect = document.createElement("select");
-      ownerSelect.className = "status-select";
-      renderOwnerSelect(ownerSelect);
-      ownerSelect.value = item.owner;
-      ownerSelect.addEventListener("change", function () {
-        item.owner = ownerSelect.value;
-        renderAll();
-        notionUpdateItem(item, { "所有者": item.owner });
-      });
-      tdOwner.appendChild(ownerSelect);
-
-      var tdCat = document.createElement("td");
-      tdCat.setAttribute("data-label", "カテゴリ");
-      var catSelect = document.createElement("select");
-      catSelect.className = "status-select";
-      renderCategorySelect(catSelect, item.category);
-      catSelect.addEventListener("change", function () {
-        item.category = catSelect.value;
-        renderAll();
-        notionUpdateItem(item, { "カテゴリ": item.category });
-      });
-      tdCat.appendChild(catSelect);
-      var catCount = itemCategoryCount(item);
-      if (catCount >= 2) {
-        var catCountHint = document.createElement("span");
-        catCountHint.className = "cat-count-hint";
-        catCountHint.textContent = "(同カテゴリ合計" + catCount + "個)";
-        tdCat.appendChild(catCountHint);
-      }
-
-      var tdFreq = document.createElement("td");
-      tdFreq.setAttribute("data-label", "使用頻度");
-      var freqSelect = document.createElement("select");
-      freqSelect.className = "status-select";
-      renderSelectOptions(freqSelect, FREQ_OPTIONS, function (o) { return o.label; }, function (o) { return o.value; });
-      freqSelect.value = item.freq;
-      freqSelect.addEventListener("change", function () {
-        item.freq = parseInt(freqSelect.value, 10);
-        renderAll();
-        notionUpdateItem(item, { "使用頻度": item.freq });
-      });
-      tdFreq.appendChild(freqSelect);
-
-      var tdAttach = document.createElement("td");
-      tdAttach.setAttribute("data-label", "思い入れ度");
-      var attachSelect = document.createElement("select");
-      attachSelect.className = "status-select";
-      renderSelectOptions(attachSelect, ATTACHMENT_OPTIONS, function (o) { return o.label; }, function (o) { return o.value; });
-      attachSelect.value = item.attachment;
-      attachSelect.addEventListener("change", function () {
-        item.attachment = parseInt(attachSelect.value, 10);
-        renderAll();
-        notionUpdateItem(item, { "思い入れ度": item.attachment });
-      });
-      tdAttach.appendChild(attachSelect);
-
-      var score = computeLetGoScore(item, itemCategoryCount(item), isRetentionActive(item));
-      var eff = effectiveStatus(item);
-
-      var tdVerdict = document.createElement("td");
-      tdVerdict.setAttribute("data-label", "判定");
-      var badge = document.createElement("span");
-      badge.className = "badge";
-      badge.style.background = VERDICT_COLOR[eff.status] || "#999";
-      var scoreSpan = document.createElement("span");
-      scoreSpan.className = "score";
-      scoreSpan.textContent = "(" + score + ")";
-      badge.textContent = eff.status + " ";
-      badge.appendChild(scoreSpan);
-      tdVerdict.appendChild(badge);
-      if (eff.manual) {
-        var tag = document.createElement("span");
-        tag.className = "manual-tag";
-        tag.textContent = "手動";
-        tdVerdict.appendChild(tag);
-      }
-      if (isRetentionActive(item)) {
-        var retentionTag = document.createElement("span");
-        retentionTag.className = "manual-tag";
-        retentionTag.textContent = "🔒保管期限内";
-        tdVerdict.appendChild(retentionTag);
-      }
-
-      var tdStatus = document.createElement("td");
-      tdStatus.setAttribute("data-label", "決定ステータス");
-      var statusSelect = document.createElement("select");
-      statusSelect.className = "status-select";
-      MANUAL_STATUS_OPTIONS.forEach(function (s) {
-        var opt = document.createElement("option");
-        opt.value = s; opt.textContent = s;
-        if (s === item.manualStatus) opt.selected = true;
-        statusSelect.appendChild(opt);
-      });
-      statusSelect.addEventListener("change", function () {
-        item.manualStatus = statusSelect.value;
-        renderAll();
-        notionUpdateItem(item, { "決定ステータス": STATUS_TO_NOTION[item.manualStatus] || "未定" });
-      });
-      tdStatus.appendChild(statusSelect);
-
-      var tdExpand = document.createElement("td");
-      var expandBtn = document.createElement("button");
-      expandBtn.className = "expand-btn";
-      expandBtn.type = "button";
-      var checkedCount = selfCheckedCount(item.selfChecks);
-      expandBtn.textContent = (item.expanded ? "▾ " : "▸ ") + checkedCount + "/" + SELF_QUESTIONS.length;
-      expandBtn.addEventListener("click", function () {
-        item.expanded = !item.expanded;
-        renderAll();
-      });
-      tdExpand.appendChild(expandBtn);
-
-      var tdRm = document.createElement("td");
-      var rmBtn = document.createElement("button");
-      rmBtn.className = "rm-btn";
-      rmBtn.type = "button";
-      rmBtn.textContent = "削除";
-      rmBtn.addEventListener("click", function () {
-        state.items = state.items.filter(function (i) { return i.id !== item.id; });
-        renderAll();
-        notionSoftDeleteItem(item);
-      });
-      tdRm.appendChild(rmBtn);
-
-      tr.appendChild(tdName);
-      tr.appendChild(tdQuantity);
-      tr.appendChild(tdVerdict);
-      tr.appendChild(tdExpand);
-      tr.appendChild(tdOwner);
-      tr.appendChild(tdCat);
-      tr.appendChild(tdFreq);
-      tr.appendChild(tdAttach);
-      tr.appendChild(tdStatus);
-      tr.appendChild(tdRm);
-      body.appendChild(tr);
-
-      if (item.expanded) {
-        var expandRow = document.createElement("tr");
-        expandRow.className = "self-q-row";
-        var expandCell = document.createElement("td");
-        expandCell.colSpan = 10;
-
-        var breakdown = computeScoreBreakdown(item, itemCategoryCount(item), isRetentionActive(item));
-        var breakdownBlock = document.createElement("div");
-        breakdownBlock.className = "breakdown-block";
-        var breakdownTitle = document.createElement("p");
-        breakdownTitle.className = "breakdown-title";
-        breakdownTitle.textContent = "スコアの内訳(0〜100)";
-        breakdownBlock.appendChild(breakdownTitle);
-
-        function bdRow(label, value, max) {
-          var row = document.createElement("div");
-          row.className = "breakdown-row";
-          var l = document.createElement("span"); l.textContent = label;
-          var v = document.createElement("span"); v.className = "bd-value";
-          v.textContent = Math.round(value) + " / " + max;
-          row.appendChild(l); row.appendChild(v);
-          breakdownBlock.appendChild(row);
-        }
-        bdRow("使用頻度が低いほど加点(満点70)", breakdown.useComponent, 70);
-        bdRow("思い入れが薄いほど加点(満点30)", breakdown.attachComponent, 30);
-        bdRow("↑2つの合計 ×0.7", breakdown.baseScore * 0.7, 70);
-        bdRow("自問チェックの該当数による加点(満点30)", breakdown.selfQBonus, 30);
-
-        var quantityInfoRow = document.createElement("div");
-        quantityInfoRow.className = "breakdown-row";
-        var qLabel = document.createElement("span");
-        qLabel.textContent = "この品目の個数";
-        var qValue = document.createElement("span");
-        qValue.className = "bd-value";
-        qValue.textContent = (item.quantity || 1) + "個";
-        quantityInfoRow.appendChild(qLabel); quantityInfoRow.appendChild(qValue);
-        breakdownBlock.appendChild(quantityInfoRow);
-
-        var properQtyLabel = document.createElement("label");
-        properQtyLabel.className = "retention-label";
-        properQtyLabel.style.marginTop = "4px";
-        properQtyLabel.textContent = "適正数(任意・このモノは何個までなら妥当か)";
-        var properQtyInput = document.createElement("input");
-        properQtyInput.type = "number";
-        properQtyInput.min = "1";
-        properQtyInput.className = "qty-input";
-        properQtyInput.placeholder = "未設定";
-        if (item.properQuantity) properQtyInput.value = item.properQuantity;
-        properQtyInput.addEventListener("change", function () {
-          var v = parseInt(properQtyInput.value, 10);
-          item.properQuantity = (v && v >= 1) ? v : null;
-          renderAll();
-          notionUpdateItem(item, { "適正数": item.properQuantity });
-        });
-        properQtyLabel.appendChild(properQtyInput);
-        breakdownBlock.appendChild(properQtyLabel);
-
-        var quantityBonusLabel = breakdown.quantityBonusMode === "item"
-          ? "この品目の個数超過による加点(適正数" + breakdown.quantityBonusThreshold + "個・満点20)"
-          : "同カテゴリの合計個数による加点(満点20・合計3個以上で加点。適正数未設定時のデフォルト基準)";
-        bdRow(quantityBonusLabel, breakdown.categoryBonus, 20);
-        if (item.category === "本・書類") {
-          bdRow("書類の判定(電子化・再取得可能による加点、満点20)", breakdown.docBonus, 20);
-        }
-        var totalRow = document.createElement("div");
-        totalRow.className = "breakdown-row bd-total";
-        var totalLabel = document.createElement("span");
-        totalLabel.textContent = breakdown.cap ? "安全弁適用前の合計" : "合計(最終スコア)";
-        var totalValue = document.createElement("span");
-        totalValue.className = "bd-value";
-        totalValue.textContent = Math.round(breakdown.combined) + " 点";
-        totalRow.appendChild(totalLabel); totalRow.appendChild(totalValue);
-        breakdownBlock.appendChild(totalRow);
-        if (breakdown.cap) {
-          var capNote = document.createElement("p");
-          capNote.className = "breakdown-cap hint";
-          capNote.style.margin = "4px 0 0";
-          var capReasonText = breakdown.cap.reason === "retention"
-            ? "🔒 保管期限内の安全弁により " + breakdown.cap.limit + "点までに抑制"
-            : breakdown.cap.reason === "docLegal"
-            ? "📎 法的な保存義務の可能性がある安全弁により " + breakdown.cap.limit + "点までに抑制"
-            : "❤️ 思い入れ度が高い場合の安全弁により " + breakdown.cap.limit + "点までに抑制";
-          capNote.textContent = capReasonText + " → 最終スコア " + breakdown.score + "点";
-          breakdownBlock.appendChild(capNote);
-        }
-        expandCell.appendChild(breakdownBlock);
-
-        var retentionBlock = document.createElement("div");
-        retentionBlock.className = "retention-block";
-        var retentionLabel = document.createElement("label");
-        retentionLabel.className = "retention-label";
-        retentionLabel.textContent = "保管期限(任意・保証書や書類の保存期限など)";
-        var retentionInput = document.createElement("input");
-        retentionInput.type = "date";
-        retentionInput.value = item.retentionUntil || "";
-        retentionInput.addEventListener("change", function () {
-          item.retentionUntil = retentionInput.value || "";
-          renderAll();
-          notionUpdateItem(item, { "date:保管期限:start": item.retentionUntil || null });
-        });
-        retentionLabel.appendChild(retentionInput);
-        retentionBlock.appendChild(retentionLabel);
-        var retentionHint = document.createElement("p");
-        retentionHint.className = "hint";
-        retentionHint.style.margin = "6px 0 0";
-        retentionHint.textContent = "参考(一般的な目安。個別事情で異なるため正確な期間は公式情報を確認してください): 確定申告関係の帳簿・書類は5〜7年、契約書は5年程度、医療費領収書は5年、保証書は記載の保証期間まで。";
-        retentionBlock.appendChild(retentionHint);
-        if (isRetentionActive(item)) {
-          var retentionActiveTag = document.createElement("p");
-          retentionActiveTag.className = "hint";
-          retentionActiveTag.style.margin = "6px 0 0";
-          retentionActiveTag.style.color = "var(--keep)";
-          retentionActiveTag.textContent = "🔒 保管期限内のため、手放し候補にはなりません。";
-          retentionBlock.appendChild(retentionActiveTag);
-        }
-        expandCell.appendChild(retentionBlock);
-
-        if (item.category === "本・書類") {
-          var docBlock = document.createElement("div");
-          docBlock.className = "retention-block";
-          var docTitle = document.createElement("p");
-          docTitle.className = "breakdown-title";
-          docTitle.textContent = "書類の判定";
-          docBlock.appendChild(docTitle);
-
-          function docCheckRow(labelText, checked, onChange) {
-            var row = document.createElement("label");
-            row.className = "self-q-item";
-            var cb = document.createElement("input");
-            cb.type = "checkbox";
-            cb.checked = !!checked;
-            cb.addEventListener("change", function () { onChange(cb.checked); });
-            var span = document.createElement("span");
-            span.textContent = labelText;
-            row.appendChild(cb); row.appendChild(span);
-            docBlock.appendChild(row);
-            return row;
-          }
-          docCheckRow("確定申告・税務関連など、法的な保存義務がある可能性がある(未確認なら念のためチェック)", item.docLegalFlag, function (v) {
-            item.docLegalFlag = v;
-            renderAll();
-            notionUpdateItem(item, { "法定保存の可能性": v ? "__YES__" : "__NO__" });
-          });
-          docCheckRow("電子化・スキャン済みで、データとしても保存されている", item.docDigitized, function (v) {
-            item.docDigitized = v;
-            renderAll();
-            notionUpdateItem(item, { "電子化済み": v ? "__YES__" : "__NO__" });
-          });
-          docCheckRow("発行元や別のページ(オンライン明細等)で、必要になれば再取得・参照できる", item.docRetrievable, function (v) {
-            item.docRetrievable = v;
-            renderAll();
-            notionUpdateItem(item, { "別途参照可能": v ? "__YES__" : "__NO__" });
-          });
-
-          var docHint = document.createElement("p");
-          docHint.className = "hint";
-          docHint.style.margin = "6px 0 0";
-          docHint.textContent = "法的な保存義務の可否は書類の種類や個別事情によるため、正確な要否はご自身で確認してください(このチェックは念のための安全弁としてのみ働きます)。「法的な保存義務の可能性」にチェックがあると、具体的な保管期限が未設定でも上限20点までに抑えられます。「電子化済み」「再取得可能」はそれぞれ現物を手放しやすくする方向に加点します。";
-          docBlock.appendChild(docHint);
-
-          expandCell.appendChild(docBlock);
-        }
-
-        var disposalBlock = document.createElement("div");
-        disposalBlock.className = "retention-block";
-        var disposalLabel = document.createElement("label");
-        disposalLabel.className = "retention-label";
-        disposalLabel.textContent = "手放す時の廃棄カテゴリ(任意)";
-        var disposalSelect = document.createElement("select");
-        disposalSelect.className = "status-select";
-        var noneOpt = document.createElement("option");
-        noneOpt.value = ""; noneOpt.textContent = "未設定";
-        disposalSelect.appendChild(noneOpt);
-        DISPOSAL_CATEGORY_OPTIONS.forEach(function (c) {
-          var opt = document.createElement("option"); opt.value = c; opt.textContent = c;
-          if (c === item.disposalCategory) opt.selected = true;
-          disposalSelect.appendChild(opt);
-        });
-        disposalSelect.addEventListener("change", function () {
-          item.disposalCategory = disposalSelect.value;
-          renderAll();
-          notionUpdateItem(item, { "廃棄カテゴリ": item.disposalCategory });
-        });
-        disposalLabel.appendChild(disposalSelect);
-        disposalBlock.appendChild(disposalLabel);
-        if (item.disposalCategory) {
-          var disposalLink = document.createElement("a");
-          disposalLink.href = buildWasteSearchUrl(wasteState.municipality, item.disposalCategory);
-          disposalLink.target = "_blank";
-          disposalLink.rel = "noopener noreferrer";
-          disposalLink.className = "hint";
-          disposalLink.style.display = "inline-block";
-          disposalLink.style.marginTop = "4px";
-          disposalLink.textContent = (wasteState.municipality || "お住まいの地域") + "の「" + item.disposalCategory + "」の分別ルールを検索 →";
-          disposalBlock.appendChild(disposalLink);
-        } else {
-          var disposalHint = document.createElement("p");
-          disposalHint.className = "hint";
-          disposalHint.style.margin = "4px 0 0";
-          disposalHint.textContent = "廃棄カテゴリを選ぶと、お住まいの地域の分別ルール検索リンクが表示されます。";
-          disposalBlock.appendChild(disposalHint);
-        }
-        expandCell.appendChild(disposalBlock);
-
-        var list = document.createElement("div");
-        list.className = "self-q-list";
-        if (!item.selfChecks) item.selfChecks = emptySelfChecks();
-        SELF_QUESTIONS.forEach(function (q) {
-          var row = document.createElement("label");
-          row.className = "self-q-item";
-          var cb = document.createElement("input");
-          cb.type = "checkbox";
-          cb.checked = !!item.selfChecks[q.id];
-          cb.addEventListener("change", function () {
-            item.selfChecks[q.id] = cb.checked;
-            renderAll();
-            notionUpdateItem(item, { "自問チェック": selfChecksToLabels(item.selfChecks) });
-          });
-          var span = document.createElement("span");
-          span.textContent = q.label;
-          row.appendChild(cb);
-          row.appendChild(span);
-          list.appendChild(row);
-        });
-        expandCell.appendChild(list);
-        expandRow.appendChild(expandCell);
-        body.appendChild(expandRow);
-      }
+      body.appendChild(buildItemRow(item));
+      if (item.expanded) body.appendChild(buildItemDetailRow(item));
     });
   }
 
@@ -1406,6 +1536,15 @@
   }
 
   // ---------- ゴミ収集カレンダーの描画 ----------
+  // 収集ルールの1フィールドを更新する共通パターン(state更新→保存→再描画→Notion同期)。
+  function commitWasteRuleUpdate(rule, mutateFn, rerenderList) {
+    mutateFn();
+    saveWasteSettings();
+    if (rerenderList) renderWasteRuleList();
+    renderWasteCalendar();
+    if (NOTION_ENABLED) notionUpdateWasteRule(rule);
+  }
+
   function renderWasteRuleList() {
     var wrap = document.getElementById("wasteRuleList");
     wrap.innerHTML = "";
@@ -1423,26 +1562,20 @@
       var catSelect = document.createElement("select");
       catSelect.className = "status-select";
       DISPOSAL_CATEGORY_OPTIONS.forEach(function (c) {
-        var opt = document.createElement("option"); opt.value = c; opt.textContent = c;
-        if (c === rule.category) opt.selected = true;
-        catSelect.appendChild(opt);
+        addOption(catSelect, c, c, c === rule.category);
       });
       catSelect.addEventListener("change", function () {
-        rule.category = catSelect.value; saveWasteSettings(); renderWasteCalendar();
-        if (NOTION_ENABLED) notionUpdateWasteRule(rule);
+        commitWasteRuleUpdate(rule, function () { rule.category = catSelect.value; }, false);
       });
       row.appendChild(catSelect);
 
       var modeSelect = document.createElement("select");
       modeSelect.className = "status-select";
       [["weekly", "毎週"], ["nth", "第N週のみ"]].forEach(function (pair) {
-        var opt = document.createElement("option"); opt.value = pair[0]; opt.textContent = pair[1];
-        if (pair[0] === rule.mode) opt.selected = true;
-        modeSelect.appendChild(opt);
+        addOption(modeSelect, pair[0], pair[1], pair[0] === rule.mode);
       });
       modeSelect.addEventListener("change", function () {
-        rule.mode = modeSelect.value; saveWasteSettings(); renderWasteRuleList(); renderWasteCalendar();
-        if (NOTION_ENABLED) notionUpdateWasteRule(rule);
+        commitWasteRuleUpdate(rule, function () { rule.mode = modeSelect.value; }, true);
       });
       row.appendChild(modeSelect);
 
@@ -1453,11 +1586,11 @@
         cb.type = "checkbox";
         cb.checked = rule.weekdays.indexOf(dowIdx) >= 0;
         cb.addEventListener("change", function () {
-          var pos = rule.weekdays.indexOf(dowIdx);
-          if (cb.checked && pos < 0) rule.weekdays.push(dowIdx);
-          if (!cb.checked && pos >= 0) rule.weekdays.splice(pos, 1);
-          saveWasteSettings(); renderWasteCalendar();
-          if (NOTION_ENABLED) notionUpdateWasteRule(rule);
+          commitWasteRuleUpdate(rule, function () {
+            var pos = rule.weekdays.indexOf(dowIdx);
+            if (cb.checked && pos < 0) rule.weekdays.push(dowIdx);
+            if (!cb.checked && pos >= 0) rule.weekdays.splice(pos, 1);
+          }, false);
         });
         dowLabel.appendChild(cb);
         dowLabel.appendChild(document.createTextNode(label));
@@ -1472,11 +1605,11 @@
           cb.type = "checkbox";
           cb.checked = rule.nths.indexOf(n) >= 0;
           cb.addEventListener("change", function () {
-            var pos = rule.nths.indexOf(n);
-            if (cb.checked && pos < 0) rule.nths.push(n);
-            if (!cb.checked && pos >= 0) rule.nths.splice(pos, 1);
-            saveWasteSettings(); renderWasteCalendar();
-            if (NOTION_ENABLED) notionUpdateWasteRule(rule);
+            commitWasteRuleUpdate(rule, function () {
+              var pos = rule.nths.indexOf(n);
+              if (cb.checked && pos < 0) rule.nths.push(n);
+              if (!cb.checked && pos >= 0) rule.nths.splice(pos, 1);
+            }, false);
           });
           nthLabel.appendChild(cb);
           nthLabel.appendChild(document.createTextNode("第" + n));
@@ -1644,6 +1777,7 @@
         selfChecks: emptySelfChecks(),
         retentionUntil: "",
         disposalCategory: "",
+        disposalMethod: "",
         docLegalFlag: false,
         docDigitized: false,
         docRetrievable: false,
