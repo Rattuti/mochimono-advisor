@@ -417,6 +417,92 @@
   // Active only when this page is viewed as a published Artifact with the
   // mcp capability granted. When opened as a plain local file, window.claude
   // is absent and the app falls back to the original in-memory-only mode.
+  // ---------- Notion bridge shim ----------
+  // window.claude.mcp が存在しない環境(Artifactではなくローカルファイル等として
+  // 開かれた場合)でのみ、Cloudflare Worker(notion-bridge)経由でNotion側の
+  // データを読み書きする互換シムを定義する。window.claude.mcp.callTool(server,
+  // tool, input) と同じ形を再現し、アプリ本体のコードからは区別なく呼べるようにする。
+  if (!(window.claude && window.claude.mcp)) {
+    (function () {
+      var BRIDGE_BASE = "https://notion-bridge.rattuti.workers.dev";
+      var APP_KEY_STORAGE = "notion_bridge_key";
+      var VIEW_TO_DATA_SOURCE = {
+        "view://278e6dcf-bf22-4e80-83c6-2e3af21f605e": "7fd9dfe5-a484-450a-9baf-f287aa113569",
+        "view://e32892f3-c084-46a9-ab33-b1a7fd50ce69": "503fe0c6-50d0-491e-9592-f243e370daa3",
+        "view://f2b4439d-f210-42a8-950c-b298f545ff3f": "aa202eaf-1c1a-4ac1-a2c9-ef0310472b4e"
+      };
+      // notion-query-database-view/notion-create-pagesで取得・作成した各ページIDが
+      // どのデータソース(DB)に属するかを控えておく。notion-update-pageはpage_idしか
+      // 受け取らないため、更新時にこの対応表からdataSourceIdを引く。
+      var pageDataSourceMap = {};
+
+      function getAppKey() {
+        var key = localStorage.getItem(APP_KEY_STORAGE);
+        if (!key) {
+          key = window.prompt("Notion連携用のアプリキーを入力してください");
+          if (key) localStorage.setItem(APP_KEY_STORAGE, key);
+        }
+        return key;
+      }
+
+      function bridgeFetch(path, body) {
+        var key = getAppKey();
+        return fetch(BRIDGE_BASE + path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-App-Key": key || "" },
+          body: JSON.stringify(body)
+        }).then(function (res) {
+          if (res.status === 401) {
+            localStorage.removeItem(APP_KEY_STORAGE);
+            return Promise.reject({ code: "unauthorized", message: "アプリキーが正しくありません" });
+          }
+          if (!res.ok) {
+            return Promise.reject({ code: "http_" + res.status, message: "Notion連携サーバーへの通信に失敗しました" });
+          }
+          return res.json();
+        });
+      }
+
+      function callTool(server, tool, input) {
+        if (tool === "notion-query-database-view") {
+          var queryDataSourceId = VIEW_TO_DATA_SOURCE[input.view_url];
+          var queryBody = { dataSourceId: queryDataSourceId, page_size: input.page_size };
+          if (input.start_cursor) queryBody.start_cursor = input.start_cursor;
+          return bridgeFetch("/query", queryBody).then(function (json) {
+            var results = (json.payload && json.payload.results) || [];
+            results.forEach(function (row) {
+              if (row && row.id) pageDataSourceMap[row.id] = queryDataSourceId;
+            });
+            return json;
+          });
+        }
+        if (tool === "notion-create-pages") {
+          var createDataSourceId = input.parent && input.parent.data_source_id;
+          var page = input.pages && input.pages[0];
+          return bridgeFetch("/create", {
+            dataSourceId: createDataSourceId,
+            properties: page && page.properties
+          }).then(function (json) {
+            var created = json.payload && json.payload.pages && json.payload.pages[0];
+            if (created && created.id) pageDataSourceMap[created.id] = createDataSourceId;
+            return json;
+          });
+        }
+        if (tool === "notion-update-page") {
+          return bridgeFetch("/update", {
+            pageId: input.page_id,
+            dataSourceId: pageDataSourceMap[input.page_id],
+            properties: input.properties
+          });
+        }
+        return Promise.reject({ code: "unsupported_tool", message: "未対応のツールです: " + tool });
+      }
+
+      window.claude = window.claude || {};
+      window.claude.mcp = { callTool: callTool };
+    })();
+  }
+
   var NOTION_ENABLED = !!(window.claude && window.claude.mcp);
   var NOTION_SERVER = "Notion";
   var NOTION_DATA_SOURCE_ID = "f6c72694-c08d-4585-b300-cab10699d250";
