@@ -463,17 +463,20 @@
         });
       }
 
+      // bridgeFetchはWorkerの生レスポンス({results,...}や{pages:[...]}等)を
+      // そのまま返す。window.claude.mcp.callToolの実際の戻り値は{payload: ...}
+      // で包まれた形のため、ここで同じ形に包み直してからアプリ本体に返す。
       function callTool(server, tool, input) {
         if (tool === "notion-query-database-view") {
           var queryDataSourceId = VIEW_TO_DATA_SOURCE[input.view_url];
           var queryBody = { dataSourceId: queryDataSourceId, page_size: input.page_size };
           if (input.start_cursor) queryBody.start_cursor = input.start_cursor;
-          return bridgeFetch("/query", queryBody).then(function (json) {
-            var results = (json.payload && json.payload.results) || [];
+          return bridgeFetch("/query", queryBody).then(function (raw) {
+            var results = raw.results || [];
             results.forEach(function (row) {
               if (row && row.id) pageDataSourceMap[row.id] = queryDataSourceId;
             });
-            return json;
+            return { payload: raw };
           });
         }
         if (tool === "notion-create-pages") {
@@ -482,10 +485,10 @@
           return bridgeFetch("/create", {
             dataSourceId: createDataSourceId,
             properties: page && page.properties
-          }).then(function (json) {
-            var created = json.payload && json.payload.pages && json.payload.pages[0];
+          }).then(function (raw) {
+            var created = raw.pages && raw.pages[0];
             if (created && created.id) pageDataSourceMap[created.id] = createDataSourceId;
-            return json;
+            return { payload: raw };
           });
         }
         if (tool === "notion-update-page") {
@@ -493,6 +496,8 @@
             pageId: input.page_id,
             dataSourceId: pageDataSourceMap[input.page_id],
             properties: input.properties
+          }).then(function (raw) {
+            return { payload: raw };
           });
         }
         return Promise.reject({ code: "unsupported_tool", message: "未対応のツールです: " + tool });
