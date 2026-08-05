@@ -387,6 +387,15 @@
     return [{ label: "🔍 調べる", query: name + " 捨て方" }];
   }
 
+  // ---------- 整理アイデア参考リンク(検討中のアイテム向け) ----------
+  function buildOrganizeIdeaLinks(category) {
+    var kw = (category ? category + " " : "") + "収納 整理 アイデア";
+    return [
+      { label: "整理・収納の記事を検索(ブログ・メディア)", url: "https://www.google.com/search?q=" + encodeURIComponent(kw) },
+      { label: "整理・収納のアイデア画像を検索(Pinterest)", url: "https://www.pinterest.com/search/pins/?q=" + encodeURIComponent(kw) }
+    ];
+  }
+
   // 「勝手にモノが減る7つの自問」(チェック=手放し方向のシグナル)
   var SELF_QUESTIONS = [
     { id: "rebuy", label: "買い直し思考: いったん手放しても、同じモノをまた買わないと思う" },
@@ -486,7 +495,7 @@
   }
 
   function notionRowToItem(row) {
-    var selfLabels = parseJsonArrayProp(row["自問チェック"]);
+    var selfLabels = toLabelArray(row["自問チェック"]);
     var pageId = extractPageId(row.url);
     return {
       id: pageId,
@@ -635,10 +644,18 @@
   }
 
   // ---------- ゴミ収集カレンダー設定のNotion同期 ----------
+  function toLabelArray(value) {
+    if (Array.isArray(value)) return value;
+    if (typeof value === "string" && value) {
+      try { var parsed = JSON.parse(value); return Array.isArray(parsed) ? parsed : [value]; }
+      catch (e) { return value.split(","); }
+    }
+    return [];
+  }
   function wasteRowToRule(row) {
     var pageId = extractPageId(row.url);
-    var weekdayLabels = parseJsonArrayProp(row["曜日"]);
-    var nthLabels = parseJsonArrayProp(row["第N週"]);
+    var weekdayLabels = toLabelArray(row["曜日"]);
+    var nthLabels = toLabelArray(row["第N週"]);
     return {
       id: pageId, notionId: pageId,
       category: row["カテゴリ"] || DISPOSAL_CATEGORY_OPTIONS[0],
@@ -1452,6 +1469,27 @@
     return list;
   }
 
+  function buildOrganizeIdeaBlock(item) {
+    var ideaBlock = document.createElement("div");
+    ideaBlock.className = "retention-block";
+    var ideaLabel = document.createElement("div");
+    ideaLabel.className = "retention-label";
+    ideaLabel.textContent = "整理のヒントを探す(このアイテムは「検討中」です)";
+    ideaBlock.appendChild(ideaLabel);
+    buildOrganizeIdeaLinks(item.category).forEach(function (link) {
+      var a = document.createElement("a");
+      a.href = link.url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.className = "hint";
+      a.style.display = "block";
+      a.style.marginTop = "4px";
+      a.textContent = link.label + " →";
+      ideaBlock.appendChild(a);
+    });
+    return ideaBlock;
+  }
+
   function buildItemDetailRow(item) {
     var expandRow = document.createElement("tr");
     expandRow.className = "self-q-row";
@@ -1462,6 +1500,7 @@
     if (item.category === "本・書類") expandCell.appendChild(buildDocBlock(item));
     var disposalBlock = buildDisposalBlock(item);
     if (disposalBlock) expandCell.appendChild(disposalBlock);
+    if (effectiveStatus(item).status === "検討中") expandCell.appendChild(buildOrganizeIdeaBlock(item));
     expandCell.appendChild(buildSelfCheckList(item));
     expandRow.appendChild(expandCell);
     return expandRow;
