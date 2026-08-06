@@ -434,7 +434,13 @@
       // notion-query-database-view/notion-create-pagesで取得・作成した各ページIDが
       // どのデータソース(DB)に属するかを控えておく。notion-update-pageはpage_idしか
       // 受け取らないため、更新時にこの対応表からdataSourceIdを引く。
+      // Workerが返すIDはハイフン付きだが、アプリ側はextractPageId()でハイフンなしの
+      // 32桁hexに変換した値をnotionIdとして保持するため、キーは常にハイフンを
+      // 除去して正規化してから読み書きする。
       var pageDataSourceMap = {};
+      function normalizeId(id) {
+        return (id || "").replace(/-/g, "");
+      }
 
       function getAppKey() {
         var key = localStorage.getItem(APP_KEY_STORAGE);
@@ -474,7 +480,7 @@
           return bridgeFetch("/query", queryBody).then(function (raw) {
             var results = raw.results || [];
             results.forEach(function (row) {
-              if (row && row.id) pageDataSourceMap[row.id] = queryDataSourceId;
+              if (row && row.id) pageDataSourceMap[normalizeId(row.id)] = queryDataSourceId;
             });
             return { payload: raw };
           });
@@ -487,14 +493,14 @@
             properties: page && page.properties
           }).then(function (raw) {
             var created = raw.pages && raw.pages[0];
-            if (created && created.id) pageDataSourceMap[created.id] = createDataSourceId;
+            if (created && created.id) pageDataSourceMap[normalizeId(created.id)] = createDataSourceId;
             return { payload: raw };
           });
         }
         if (tool === "notion-update-page") {
           return bridgeFetch("/update", {
             pageId: input.page_id,
-            dataSourceId: pageDataSourceMap[input.page_id],
+            dataSourceId: pageDataSourceMap[normalizeId(input.page_id)],
             properties: input.properties
           }).then(function (raw) {
             return { payload: raw };
