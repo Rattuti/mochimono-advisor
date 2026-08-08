@@ -123,6 +123,9 @@
   .research-btn:hover { background: var(--bg); }
   .rm-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.85rem; padding: 2px 6px; }
   .rm-btn:hover { color: var(--letgo); }
+  /* 判定タグ行と同じ行に削除ボタンを表示するスマホ専用の複製ボタン。
+     PCではtdRm側の本来のボタンを使うため常に非表示。 */
+  .mobile-rm-btn { display: none; }
   .empty { color: var(--muted); text-align: center; padding: 30px 0; font-size: 0.9rem; }
 
   /* 所有者・カテゴリ・使用頻度・思い入れ度・決定ステータス・手放し方法の
@@ -168,6 +171,13 @@
     .status-select, button, .research-btn { min-height: 40px; display: flex; align-items: center; justify-content: center; }
     .self-q-item input[type=checkbox] { width: 20px; height: 20px; }
     .expand-btn { padding: 8px 4px; }
+    /* 判定バッジ+タグ群を左詰め横並びにし、同じ行の右端に削除ボタンを置く。
+       PCの本来の削除セル(tdRm)は隠し、その場所に複製した.mobile-rm-btnを使う。 */
+    .verdict-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .verdict-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+    .verdict-tags .manual-tag { display: inline-block; margin-top: 0; }
+    .mobile-rm-btn { display: inline-flex; flex-shrink: 0; }
+    .rm-cell { display: none; }
   }
 </style>
 </head>
@@ -1227,6 +1237,21 @@
     return select;
   }
 
+  // アイテム削除ボタン。スマホでは判定タグと同じ行(.mobile-rm-btn)にも
+  // もう1つ複製して表示するため、呼ぶたびに独立したボタンを生成する。
+  function buildRmButton(item) {
+    var rmBtn = document.createElement("button");
+    rmBtn.className = "rm-btn";
+    rmBtn.type = "button";
+    rmBtn.textContent = "削除";
+    rmBtn.addEventListener("click", function () {
+      state.items = state.items.filter(function (i) { return i.id !== item.id; });
+      renderAll();
+      notionSoftDeleteItem(item);
+    });
+    return rmBtn;
+  }
+
   // 「手放し方法」セレクトの下に添える備考(ヒント文/分別カテゴリ)と調査リンク。
   // 一覧の列・▸詳細(スマホ)の両方から呼ぶ。
   function appendMethodNoteAndLinks(container, item) {
@@ -1313,6 +1338,10 @@
 
     var tdVerdict = document.createElement("td");
     tdVerdict.setAttribute("data-label", "判定");
+    var verdictRow = document.createElement("div");
+    verdictRow.className = "verdict-row";
+    var verdictTags = document.createElement("div");
+    verdictTags.className = "verdict-tags";
     var badge = document.createElement("span");
     badge.className = "badge";
     badge.style.background = VERDICT_COLOR[eff.status] || "#999";
@@ -1321,19 +1350,26 @@
     scoreSpan.textContent = "(" + score + ")";
     badge.textContent = eff.status + " ";
     badge.appendChild(scoreSpan);
-    tdVerdict.appendChild(badge);
+    verdictTags.appendChild(badge);
     if (eff.manual) {
       var tag = document.createElement("span");
       tag.className = "manual-tag";
       tag.textContent = "手動";
-      tdVerdict.appendChild(tag);
+      verdictTags.appendChild(tag);
     }
     if (isRetentionActive(item)) {
       var retentionTag = document.createElement("span");
       retentionTag.className = "manual-tag";
       retentionTag.textContent = "🔒保管期限内";
-      tdVerdict.appendChild(retentionTag);
+      verdictTags.appendChild(retentionTag);
     }
+    verdictRow.appendChild(verdictTags);
+    // スマホでは判定タグ群と同じ行の右端に削除ボタンを表示する(PCでは
+    // .mobile-rm-btnをCSSで常に非表示にし、既存のtdRm側のボタンを使う)。
+    var mobileRmBtn = buildRmButton(item);
+    mobileRmBtn.classList.add("mobile-rm-btn");
+    verdictRow.appendChild(mobileRmBtn);
+    tdVerdict.appendChild(verdictRow);
     var expandBtn = document.createElement("button");
     expandBtn.className = "expand-btn";
     expandBtn.type = "button";
@@ -1356,16 +1392,8 @@
     appendMethodNoteAndLinks(tdMethod, item);
 
     var tdRm = document.createElement("td");
-    var rmBtn = document.createElement("button");
-    rmBtn.className = "rm-btn";
-    rmBtn.type = "button";
-    rmBtn.textContent = "削除";
-    rmBtn.addEventListener("click", function () {
-      state.items = state.items.filter(function (i) { return i.id !== item.id; });
-      renderAll();
-      notionSoftDeleteItem(item);
-    });
-    tdRm.appendChild(rmBtn);
+    tdRm.className = "rm-cell";
+    tdRm.appendChild(buildRmButton(item));
 
     tr.appendChild(tdName);
     tr.appendChild(tdQuantity);
