@@ -123,12 +123,9 @@
   .research-btn:hover { background: var(--bg); }
   .rm-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.85rem; padding: 2px 6px; }
   .rm-btn:hover { color: var(--letgo); }
-  /* 判定タグ行と同じ行に削除ボタンを表示するスマホ専用の複製ボタン。
+  /* 判定まわりの行と同じ行に削除ボタンを表示するスマホ専用の複製ボタン。
      PCではtdRm側の本来のボタンを使うため常に非表示。 */
   .mobile-rm-btn { display: none; }
-  /* 展開ボタンと同じ行に決定ステータスを表示するスマホ専用の複製セレクト。
-     PCではtdStatus側の本来のセレクトを使うため常に非表示。 */
-  .mobile-status-select { display: none; }
   .empty { color: var(--muted); text-align: center; padding: 30px 0; font-size: 0.9rem; }
 
   /* 所有者・カテゴリ・使用頻度・思い入れ度・決定ステータス・手放し方法の
@@ -174,16 +171,14 @@
     .status-select, button, .research-btn { min-height: 40px; display: flex; align-items: center; justify-content: center; }
     .self-q-item input[type=checkbox] { width: 20px; height: 20px; }
     .expand-btn { padding: 8px 4px; }
-    /* 判定バッジ+タグ群を左詰め横並びにし、同じ行の右端に削除ボタンを置く。
-       PCの本来の削除セル(tdRm)は隠し、その場所に複製した.mobile-rm-btnを使う。 */
-    .verdict-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .verdict-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
-    .verdict-tags .manual-tag { display: inline-block; margin-top: 0; }
-    .mobile-rm-btn { display: inline-flex; flex-shrink: 0; }
+    /* 手動タグ→展開ボタン→判定バッジ→保管期限内タグを1行に左詰め横並びに
+       し、右端に削除ボタンを置く(margin-left:autoで押し出す)。入り切らない
+       場合はflex-wrapで折り返す。PCの本来の削除セル(tdRm)は隠し、その場所に
+       複製した.mobile-rm-btnを使う。 */
+    .verdict-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .verdict-row .manual-tag { display: inline-block; margin-top: 0; }
+    .mobile-rm-btn { display: inline-flex; flex-shrink: 0; margin-left: auto; }
     .rm-cell { display: none; }
-    /* 展開ボタン+決定ステータスの2行目。区切り線は付けず、間隔だけ空ける。 */
-    .verdict-status-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-    .verdict-status-row .mobile-status-select { display: block; flex: 1; width: auto; }
   }
 </style>
 </head>
@@ -1346,39 +1341,12 @@
     tdVerdict.setAttribute("data-label", "判定");
     var verdictRow = document.createElement("div");
     verdictRow.className = "verdict-row";
-    var verdictTags = document.createElement("div");
-    verdictTags.className = "verdict-tags";
     if (eff.manual) {
       var tag = document.createElement("span");
       tag.className = "manual-tag";
       tag.textContent = "手動";
-      verdictTags.appendChild(tag);
+      verdictRow.appendChild(tag);
     }
-    var badge = document.createElement("span");
-    badge.className = "badge";
-    badge.style.background = VERDICT_COLOR[eff.status] || "#999";
-    var scoreSpan = document.createElement("span");
-    scoreSpan.className = "score";
-    scoreSpan.textContent = "(" + score + ")";
-    badge.textContent = eff.status + " ";
-    badge.appendChild(scoreSpan);
-    verdictTags.appendChild(badge);
-    if (isRetentionActive(item)) {
-      var retentionTag = document.createElement("span");
-      retentionTag.className = "manual-tag";
-      retentionTag.textContent = "🔒保管期限内";
-      verdictTags.appendChild(retentionTag);
-    }
-    verdictRow.appendChild(verdictTags);
-    // スマホでは判定タグ群と同じ行の右端に削除ボタンを表示する(PCでは
-    // .mobile-rm-btnをCSSで常に非表示にし、既存のtdRm側のボタンを使う)。
-    var mobileRmBtn = buildRmButton(item);
-    mobileRmBtn.classList.add("mobile-rm-btn");
-    verdictRow.appendChild(mobileRmBtn);
-    tdVerdict.appendChild(verdictRow);
-
-    var verdictStatusRow = document.createElement("div");
-    verdictStatusRow.className = "verdict-status-row";
     var expandBtn = document.createElement("button");
     expandBtn.className = "expand-btn";
     expandBtn.type = "button";
@@ -1389,13 +1357,29 @@
       item.expanded = !item.expanded;
       renderAll();
     });
-    verdictStatusRow.appendChild(expandBtn);
-    // スマホでは展開ボタンと同じ行の右側に決定ステータスを表示する(PCでは
-    // .mobile-status-selectをCSSで常に非表示にし、既存のtdStatus側を使う)。
-    var mobileStatusSelect = buildStatusSelect(item);
-    mobileStatusSelect.classList.add("mobile-status-select");
-    verdictStatusRow.appendChild(mobileStatusSelect);
-    tdVerdict.appendChild(verdictStatusRow);
+    verdictRow.appendChild(expandBtn);
+    var badge = document.createElement("span");
+    badge.className = "badge";
+    badge.style.background = VERDICT_COLOR[eff.status] || "#999";
+    var scoreSpan = document.createElement("span");
+    scoreSpan.className = "score";
+    scoreSpan.textContent = "(" + score + ")";
+    badge.textContent = eff.status + " ";
+    badge.appendChild(scoreSpan);
+    verdictRow.appendChild(badge);
+    if (isRetentionActive(item)) {
+      var retentionTag = document.createElement("span");
+      retentionTag.className = "manual-tag";
+      retentionTag.textContent = "🔒保管期限内";
+      verdictRow.appendChild(retentionTag);
+    }
+    // スマホでは判定まわり(手動タグ→展開ボタン→判定バッジ→保管期限内タグ)
+    // と同じ行の右端に削除ボタンを表示する(PCでは.mobile-rm-btnをCSSで
+    // 常に非表示にし、既存のtdRm側のボタンを使う)。
+    var mobileRmBtn = buildRmButton(item);
+    mobileRmBtn.classList.add("mobile-rm-btn");
+    verdictRow.appendChild(mobileRmBtn);
+    tdVerdict.appendChild(verdictRow);
 
     var tdStatus = document.createElement("td");
     tdStatus.setAttribute("data-label", "決定ステータス");
@@ -1703,8 +1687,7 @@
 
     block.appendChild(buildQuickFieldGroup("使用頻度", buildFreqSelect(item)));
     block.appendChild(buildQuickFieldGroup("思い入れ度", buildAttachSelect(item)));
-    // 決定ステータスは判定エリアの2行目(.verdict-status-row)に常時表示する
-    // ため、ここには含めない。
+    block.appendChild(buildQuickFieldGroup("決定ステータス", buildStatusSelect(item)));
 
     var methodGroup = buildQuickFieldGroup("手放し方法", buildDisposalMethodSelect(item));
     appendMethodNoteAndLinks(methodGroup, item);
