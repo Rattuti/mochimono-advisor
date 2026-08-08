@@ -126,6 +126,9 @@
   /* 判定タグ行と同じ行に削除ボタンを表示するスマホ専用の複製ボタン。
      PCではtdRm側の本来のボタンを使うため常に非表示。 */
   .mobile-rm-btn { display: none; }
+  /* 展開ボタンと同じ行に決定ステータスを表示するスマホ専用の複製セレクト。
+     PCではtdStatus側の本来のセレクトを使うため常に非表示。 */
+  .mobile-status-select { display: none; }
   .empty { color: var(--muted); text-align: center; padding: 30px 0; font-size: 0.9rem; }
 
   /* 所有者・カテゴリ・使用頻度・思い入れ度・決定ステータス・手放し方法の
@@ -178,6 +181,9 @@
     .verdict-tags .manual-tag { display: inline-block; margin-top: 0; }
     .mobile-rm-btn { display: inline-flex; flex-shrink: 0; }
     .rm-cell { display: none; }
+    /* 展開ボタン+決定ステータスの2行目。区切り線は付けず、間隔だけ空ける。 */
+    .verdict-status-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+    .verdict-status-row .mobile-status-select { display: block; flex: 1; width: auto; }
   }
 </style>
 </head>
@@ -1342,6 +1348,12 @@
     verdictRow.className = "verdict-row";
     var verdictTags = document.createElement("div");
     verdictTags.className = "verdict-tags";
+    if (eff.manual) {
+      var tag = document.createElement("span");
+      tag.className = "manual-tag";
+      tag.textContent = "手動";
+      verdictTags.appendChild(tag);
+    }
     var badge = document.createElement("span");
     badge.className = "badge";
     badge.style.background = VERDICT_COLOR[eff.status] || "#999";
@@ -1351,12 +1363,6 @@
     badge.textContent = eff.status + " ";
     badge.appendChild(scoreSpan);
     verdictTags.appendChild(badge);
-    if (eff.manual) {
-      var tag = document.createElement("span");
-      tag.className = "manual-tag";
-      tag.textContent = "手動";
-      verdictTags.appendChild(tag);
-    }
     if (isRetentionActive(item)) {
       var retentionTag = document.createElement("span");
       retentionTag.className = "manual-tag";
@@ -1370,6 +1376,9 @@
     mobileRmBtn.classList.add("mobile-rm-btn");
     verdictRow.appendChild(mobileRmBtn);
     tdVerdict.appendChild(verdictRow);
+
+    var verdictStatusRow = document.createElement("div");
+    verdictStatusRow.className = "verdict-status-row";
     var expandBtn = document.createElement("button");
     expandBtn.className = "expand-btn";
     expandBtn.type = "button";
@@ -1380,7 +1389,13 @@
       item.expanded = !item.expanded;
       renderAll();
     });
-    tdVerdict.appendChild(expandBtn);
+    verdictStatusRow.appendChild(expandBtn);
+    // スマホでは展開ボタンと同じ行の右側に決定ステータスを表示する(PCでは
+    // .mobile-status-selectをCSSで常に非表示にし、既存のtdStatus側を使う)。
+    var mobileStatusSelect = buildStatusSelect(item);
+    mobileStatusSelect.classList.add("mobile-status-select");
+    verdictStatusRow.appendChild(mobileStatusSelect);
+    tdVerdict.appendChild(verdictStatusRow);
 
     var tdStatus = document.createElement("td");
     tdStatus.setAttribute("data-label", "決定ステータス");
@@ -1688,7 +1703,8 @@
 
     block.appendChild(buildQuickFieldGroup("使用頻度", buildFreqSelect(item)));
     block.appendChild(buildQuickFieldGroup("思い入れ度", buildAttachSelect(item)));
-    block.appendChild(buildQuickFieldGroup("決定ステータス", buildStatusSelect(item)));
+    // 決定ステータスは判定エリアの2行目(.verdict-status-row)に常時表示する
+    // ため、ここには含めない。
 
     var methodGroup = buildQuickFieldGroup("手放し方法", buildDisposalMethodSelect(item));
     appendMethodNoteAndLinks(methodGroup, item);
