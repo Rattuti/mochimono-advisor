@@ -126,6 +126,9 @@
   /* 判定まわりの行と同じ行に削除ボタンを表示するスマホ専用の複製ボタン。
      PCではtdRm側の本来のボタンを使うため常に非表示。 */
   .mobile-rm-btn { display: none; }
+  /* 品名と同じ行に個数を表示するスマホ専用の複製入力欄。
+     PCではtdQuantity側の本来の入力欄を使うため常に非表示。 */
+  .mobile-qty-input { display: none; }
   .empty { color: var(--muted); text-align: center; padding: 30px 0; font-size: 0.9rem; }
 
   /* 所有者・カテゴリ・使用頻度・思い入れ度・決定ステータス・手放し方法の
@@ -150,10 +153,16 @@
     }
     td { display: block; width: 100%; border-bottom: none; padding: 6px 0; white-space: normal; }
     td.name-cell { font-size: 1.02rem; font-weight: 700; max-width: none; padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
+    /* 1行目: 品名(左)+個数(右)。.name-row内に複製した.mobile-qty-inputを
+       表示し、本来のtdQuantityは隠す。 */
+    .name-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .name-row .name-input { flex: 1; width: auto; min-width: 0; }
+    .name-row .mobile-qty-input { display: block; width: 60px; flex-shrink: 0; }
     /* カードを縦に長くしすぎないよう、所有者・カテゴリ・使用頻度・思い入れ度・
        決定ステータス・手放し方法は▸詳細側(.quick-fields-block)に任せて隠す。
-       品名・個数・判定(バッジ+開閉ボタン)・削除だけを常時表示にする。 */
-    td[data-label="所有者"], td[data-label="カテゴリ"], td[data-label="使用頻度"],
+       品名・個数(1行目)・判定(バッジ+開閉ボタン、2行目)・削除だけを
+       常時表示にする。 */
+    td[data-label="個数"], td[data-label="所有者"], td[data-label="カテゴリ"], td[data-label="使用頻度"],
     td[data-label="思い入れ度"], td[data-label="決定ステータス"], td[data-label="手放し方法"] {
       display: none;
     }
@@ -1278,26 +1287,9 @@
     });
   }
 
-  function buildItemRow(item) {
-    var tr = document.createElement("tr");
-
-    var tdName = document.createElement("td");
-    tdName.className = "name-cell";
-    var nameInputCell = document.createElement("input");
-    nameInputCell.type = "text";
-    nameInputCell.className = "name-input";
-    nameInputCell.value = item.name;
-    nameInputCell.addEventListener("change", function () {
-      var newName = nameInputCell.value.trim();
-      if (!newName) { nameInputCell.value = item.name; return; }
-      commitItemChange(item, function () {
-        item.name = newName;
-      }, function () { return { "品名": item.name }; });
-    });
-    tdName.appendChild(nameInputCell);
-
-    var tdQuantity = document.createElement("td");
-    tdQuantity.setAttribute("data-label", "個数");
+  // 個数入力。スマホでは品名と同じ行(.mobile-qty-input)にもう1組複製して
+  // 表示するため、呼ぶたびに独立した入力欄を生成する。
+  function buildQuantityInput(item) {
     var quantityInput = document.createElement("input");
     quantityInput.type = "number";
     quantityInput.min = "1";
@@ -1310,7 +1302,38 @@
         item.quantity = q;
       }, function () { return { "個数": item.quantity }; });
     });
-    tdQuantity.appendChild(quantityInput);
+    return quantityInput;
+  }
+
+  function buildItemRow(item) {
+    var tr = document.createElement("tr");
+
+    var tdName = document.createElement("td");
+    tdName.className = "name-cell";
+    var nameRow = document.createElement("div");
+    nameRow.className = "name-row";
+    var nameInputCell = document.createElement("input");
+    nameInputCell.type = "text";
+    nameInputCell.className = "name-input";
+    nameInputCell.value = item.name;
+    nameInputCell.addEventListener("change", function () {
+      var newName = nameInputCell.value.trim();
+      if (!newName) { nameInputCell.value = item.name; return; }
+      commitItemChange(item, function () {
+        item.name = newName;
+      }, function () { return { "品名": item.name }; });
+    });
+    nameRow.appendChild(nameInputCell);
+    // スマホでは品名と同じ行の右端に個数を表示する(PCでは.mobile-qty-input
+    // をCSSで常に非表示にし、既存のtdQuantity側の入力欄を使う)。
+    var mobileQtyInput = buildQuantityInput(item);
+    mobileQtyInput.classList.add("mobile-qty-input");
+    nameRow.appendChild(mobileQtyInput);
+    tdName.appendChild(nameRow);
+
+    var tdQuantity = document.createElement("td");
+    tdQuantity.setAttribute("data-label", "個数");
+    tdQuantity.appendChild(buildQuantityInput(item));
 
     var tdOwner = document.createElement("td");
     tdOwner.setAttribute("data-label", "所有者");
