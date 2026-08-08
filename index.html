@@ -125,6 +125,11 @@
   .rm-btn:hover { color: var(--letgo); }
   .empty { color: var(--muted); text-align: center; padding: 30px 0; font-size: 0.9rem; }
 
+  /* 所有者・カテゴリ・使用頻度・思い入れ度・決定ステータス・手放し方法の
+     ▸詳細側(スマホ用)コピー。PCでは一覧の列にも同じ内容があるため、
+     ここは常に非表示にしておく(表示はモバイル用メディアクエリ側で行う)。 */
+  .quick-fields-block { display: none; flex-direction: column; gap: 10px; }
+
   /* mobile: table becomes a stack of cards */
   @media (max-width: 600px) {
     body { padding: 14px; }
@@ -142,6 +147,14 @@
     }
     td { display: block; width: 100%; border-bottom: none; padding: 6px 0; white-space: normal; }
     td.name-cell { font-size: 1.02rem; font-weight: 700; max-width: none; padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
+    /* カードを縦に長くしすぎないよう、所有者・カテゴリ・使用頻度・思い入れ度・
+       決定ステータス・手放し方法は▸詳細側(.quick-fields-block)に任せて隠す。
+       品名・個数・判定(バッジ+開閉ボタン)・削除だけを常時表示にする。 */
+    td[data-label="所有者"], td[data-label="カテゴリ"], td[data-label="使用頻度"],
+    td[data-label="思い入れ度"], td[data-label="決定ステータス"], td[data-label="手放し方法"] {
+      display: none;
+    }
+    .quick-fields-block { display: flex; }
     td[data-label]::before {
       content: attr(data-label);
       display: block;
@@ -1129,6 +1142,74 @@
     notionUpdateItem(item, notionPropsFn());
   }
 
+  // 以下、一覧の列・▸詳細(スマホ表示での「移動先」)の両方から使うセレクト類。
+  // スマホでは一覧の列を隠し、▸詳細側に同じセレクトをもう1組作って表示する
+  // (CSSで出し分けるだけで、どちらも同じcommitItemChangeで同期される)。
+  function buildOwnerSelect(item) {
+    var ownerSelect = document.createElement("select");
+    ownerSelect.className = "status-select";
+    renderOwnerSelect(ownerSelect);
+    ownerSelect.value = item.owner;
+    ownerSelect.addEventListener("change", function () {
+      commitItemChange(item, function () {
+        item.owner = ownerSelect.value;
+      }, function () { return { "所有者": item.owner }; });
+    });
+    return ownerSelect;
+  }
+
+  function buildCategorySelect(item) {
+    var catSelect = document.createElement("select");
+    catSelect.className = "status-select";
+    renderCategorySelect(catSelect, item.category);
+    catSelect.addEventListener("change", function () {
+      commitItemChange(item, function () {
+        item.category = catSelect.value;
+      }, function () { return { "カテゴリ": item.category }; });
+    });
+    return catSelect;
+  }
+
+  function buildFreqSelect(item) {
+    var freqSelect = document.createElement("select");
+    freqSelect.className = "status-select";
+    renderSelectOptions(freqSelect, FREQ_OPTIONS, function (o) { return o.label; }, function (o) { return o.value; });
+    freqSelect.value = item.freq;
+    freqSelect.addEventListener("change", function () {
+      commitItemChange(item, function () {
+        item.freq = parseInt(freqSelect.value, 10);
+      }, function () { return { "使用頻度": item.freq }; });
+    });
+    return freqSelect;
+  }
+
+  function buildAttachSelect(item) {
+    var attachSelect = document.createElement("select");
+    attachSelect.className = "status-select";
+    renderSelectOptions(attachSelect, ATTACHMENT_OPTIONS, function (o) { return o.label; }, function (o) { return o.value; });
+    attachSelect.value = item.attachment;
+    attachSelect.addEventListener("change", function () {
+      commitItemChange(item, function () {
+        item.attachment = parseInt(attachSelect.value, 10);
+      }, function () { return { "思い入れ度": item.attachment }; });
+    });
+    return attachSelect;
+  }
+
+  function buildStatusSelect(item) {
+    var statusSelect = document.createElement("select");
+    statusSelect.className = "status-select";
+    MANUAL_STATUS_OPTIONS.forEach(function (s) {
+      addOption(statusSelect, s, s, s === item.manualStatus);
+    });
+    statusSelect.addEventListener("change", function () {
+      commitItemChange(item, function () {
+        item.manualStatus = statusSelect.value;
+      }, function () { return { "決定ステータス": STATUS_TO_NOTION[item.manualStatus] || "未定" }; });
+    });
+    return statusSelect;
+  }
+
   // 一覧の列・▸詳細の両方から使う「手放し方法」セレクト。選ぶと備考(ヒント/
   // 分別カテゴリ)がすぐ下に表示されるよう、呼び出し側でrenderAll()が再描画する。
   function buildDisposalMethodSelect(item) {
@@ -1144,6 +1225,30 @@
       }, function () { return { "手放し方法": item.disposalMethod }; });
     });
     return select;
+  }
+
+  // 「手放し方法」セレクトの下に添える備考(ヒント文/分別カテゴリ)と調査リンク。
+  // 一覧の列・▸詳細(スマホ)の両方から呼ぶ。
+  function appendMethodNoteAndLinks(container, item) {
+    var methodNoteText = item.disposalMethod === "ごみに出す"
+      ? (item.disposalCategory || "分別カテゴリ未設定")
+      : DISPOSAL_METHOD_HINTS[item.disposalMethod];
+    if (methodNoteText) {
+      var methodNote = document.createElement("div");
+      methodNote.className = "method-note";
+      methodNote.textContent = methodNoteText;
+      container.appendChild(methodNote);
+    }
+    buildResearchLinks(item).forEach(function (link) {
+      var researchLink = document.createElement("a");
+      researchLink.className = "research-btn";
+      researchLink.href = buildSearchUrl(link.query);
+      researchLink.target = "_blank";
+      researchLink.rel = "noopener noreferrer";
+      researchLink.title = "新しいタブで検索: " + link.query;
+      researchLink.textContent = link.label;
+      container.appendChild(researchLink);
+    });
   }
 
   function buildItemRow(item) {
@@ -1182,28 +1287,11 @@
 
     var tdOwner = document.createElement("td");
     tdOwner.setAttribute("data-label", "所有者");
-    var ownerSelect = document.createElement("select");
-    ownerSelect.className = "status-select";
-    renderOwnerSelect(ownerSelect);
-    ownerSelect.value = item.owner;
-    ownerSelect.addEventListener("change", function () {
-      commitItemChange(item, function () {
-        item.owner = ownerSelect.value;
-      }, function () { return { "所有者": item.owner }; });
-    });
-    tdOwner.appendChild(ownerSelect);
+    tdOwner.appendChild(buildOwnerSelect(item));
 
     var tdCat = document.createElement("td");
     tdCat.setAttribute("data-label", "カテゴリ");
-    var catSelect = document.createElement("select");
-    catSelect.className = "status-select";
-    renderCategorySelect(catSelect, item.category);
-    catSelect.addEventListener("change", function () {
-      commitItemChange(item, function () {
-        item.category = catSelect.value;
-      }, function () { return { "カテゴリ": item.category }; });
-    });
-    tdCat.appendChild(catSelect);
+    tdCat.appendChild(buildCategorySelect(item));
     var catCount = itemCategoryCount(item);
     if (catCount >= 2) {
       var catCountHint = document.createElement("span");
@@ -1214,29 +1302,11 @@
 
     var tdFreq = document.createElement("td");
     tdFreq.setAttribute("data-label", "使用頻度");
-    var freqSelect = document.createElement("select");
-    freqSelect.className = "status-select";
-    renderSelectOptions(freqSelect, FREQ_OPTIONS, function (o) { return o.label; }, function (o) { return o.value; });
-    freqSelect.value = item.freq;
-    freqSelect.addEventListener("change", function () {
-      commitItemChange(item, function () {
-        item.freq = parseInt(freqSelect.value, 10);
-      }, function () { return { "使用頻度": item.freq }; });
-    });
-    tdFreq.appendChild(freqSelect);
+    tdFreq.appendChild(buildFreqSelect(item));
 
     var tdAttach = document.createElement("td");
     tdAttach.setAttribute("data-label", "思い入れ度");
-    var attachSelect = document.createElement("select");
-    attachSelect.className = "status-select";
-    renderSelectOptions(attachSelect, ATTACHMENT_OPTIONS, function (o) { return o.label; }, function (o) { return o.value; });
-    attachSelect.value = item.attachment;
-    attachSelect.addEventListener("change", function () {
-      commitItemChange(item, function () {
-        item.attachment = parseInt(attachSelect.value, 10);
-      }, function () { return { "思い入れ度": item.attachment }; });
-    });
-    tdAttach.appendChild(attachSelect);
+    tdAttach.appendChild(buildAttachSelect(item));
 
     var score = computeLetGoScore(item, itemCategoryCount(item), isRetentionActive(item));
     var eff = effectiveStatus(item);
@@ -1278,40 +1348,12 @@
 
     var tdStatus = document.createElement("td");
     tdStatus.setAttribute("data-label", "決定ステータス");
-    var statusSelect = document.createElement("select");
-    statusSelect.className = "status-select";
-    MANUAL_STATUS_OPTIONS.forEach(function (s) {
-      addOption(statusSelect, s, s, s === item.manualStatus);
-    });
-    statusSelect.addEventListener("change", function () {
-      commitItemChange(item, function () {
-        item.manualStatus = statusSelect.value;
-      }, function () { return { "決定ステータス": STATUS_TO_NOTION[item.manualStatus] || "未定" }; });
-    });
-    tdStatus.appendChild(statusSelect);
+    tdStatus.appendChild(buildStatusSelect(item));
 
     var tdMethod = document.createElement("td");
     tdMethod.setAttribute("data-label", "手放し方法");
     tdMethod.appendChild(buildDisposalMethodSelect(item));
-    var methodNoteText = item.disposalMethod === "ごみに出す"
-      ? (item.disposalCategory || "分別カテゴリ未設定")
-      : DISPOSAL_METHOD_HINTS[item.disposalMethod];
-    if (methodNoteText) {
-      var methodNote = document.createElement("div");
-      methodNote.className = "method-note";
-      methodNote.textContent = methodNoteText;
-      tdMethod.appendChild(methodNote);
-    }
-    buildResearchLinks(item).forEach(function (link) {
-      var researchLink = document.createElement("a");
-      researchLink.className = "research-btn";
-      researchLink.href = buildSearchUrl(link.query);
-      researchLink.target = "_blank";
-      researchLink.rel = "noopener noreferrer";
-      researchLink.title = "新しいタブで検索: " + link.query;
-      researchLink.textContent = link.label;
-      tdMethod.appendChild(researchLink);
-    });
+    appendMethodNoteAndLinks(tdMethod, item);
 
     var tdRm = document.createElement("td");
     var rmBtn = document.createElement("button");
@@ -1587,11 +1629,52 @@
     return ideaBlock;
   }
 
+  function buildQuickFieldGroup(labelText, control) {
+    var wrap = document.createElement("label");
+    wrap.className = "retention-label";
+    wrap.textContent = labelText;
+    wrap.appendChild(control);
+    return wrap;
+  }
+
+  // スマホ表示(600px以下)で一覧の列から▸詳細に移動する6項目(所有者・
+  // カテゴリ・使用頻度・思い入れ度・決定ステータス・手放し方法)。一覧の列と
+  // 同じ内容のセレクトをもう1組作り、CSSでどちらか一方だけを表示する
+  // (どちらもcommitItemChange経由で同じitemを更新するので、表示のズレは
+  // 起きない)。PC表示ではこのブロックはCSSで常に非表示。
+  function buildItemQuickFieldsBlock(item) {
+    var block = document.createElement("div");
+    block.className = "quick-fields-block retention-block";
+
+    block.appendChild(buildQuickFieldGroup("所有者", buildOwnerSelect(item)));
+
+    var catGroup = buildQuickFieldGroup("カテゴリ", buildCategorySelect(item));
+    var catCount = itemCategoryCount(item);
+    if (catCount >= 2) {
+      var catCountHint = document.createElement("span");
+      catCountHint.className = "cat-count-hint";
+      catCountHint.textContent = "(同カテゴリ合計" + catCount + "個)";
+      catGroup.appendChild(catCountHint);
+    }
+    block.appendChild(catGroup);
+
+    block.appendChild(buildQuickFieldGroup("使用頻度", buildFreqSelect(item)));
+    block.appendChild(buildQuickFieldGroup("思い入れ度", buildAttachSelect(item)));
+    block.appendChild(buildQuickFieldGroup("決定ステータス", buildStatusSelect(item)));
+
+    var methodGroup = buildQuickFieldGroup("手放し方法", buildDisposalMethodSelect(item));
+    appendMethodNoteAndLinks(methodGroup, item);
+    block.appendChild(methodGroup);
+
+    return block;
+  }
+
   function buildItemDetailRow(item) {
     var expandRow = document.createElement("tr");
     expandRow.className = "self-q-row";
     var expandCell = document.createElement("td");
     expandCell.colSpan = 10;
+    expandCell.appendChild(buildItemQuickFieldsBlock(item));
     expandCell.appendChild(buildScoreBreakdownBlock(item));
     expandCell.appendChild(buildRetentionBlock(item));
     if (item.category === "本・書類") expandCell.appendChild(buildDocBlock(item));
