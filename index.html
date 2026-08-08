@@ -171,12 +171,13 @@
     .status-select, button, .research-btn { min-height: 40px; display: flex; align-items: center; justify-content: center; }
     .self-q-item input[type=checkbox] { width: 20px; height: 20px; }
     .expand-btn { padding: 8px 4px; }
-    /* 手動タグ→展開ボタン→判定バッジ→保管期限内タグを1行に左詰め横並びに
-       し、右端に削除ボタンを置く(margin-left:autoで押し出す)。入り切らない
-       場合はflex-wrapで折り返す。PCの本来の削除セル(tdRm)は隠し、その場所に
-       複製した.mobile-rm-btnを使う。 */
+    /* 展開ボタン→判定バッジ→保管期限内タグを1行に左詰め横並びにし、右端に
+       削除ボタンを置く(margin-left:autoで押し出す)。入り切らない場合は
+       flex-wrapで折り返す。PCの本来の削除セル(tdRm)は隠し、その場所に
+       複製した.mobile-rm-btnを使う。「手動」タグはスマホでは非表示。 */
     .verdict-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
     .verdict-row .manual-tag { display: inline-block; margin-top: 0; }
+    .manual-status-tag { display: none; }
     .mobile-rm-btn { display: inline-flex; flex-shrink: 0; margin-left: auto; }
     .rm-cell { display: none; }
   }
@@ -1343,7 +1344,9 @@
     verdictRow.className = "verdict-row";
     if (eff.manual) {
       var tag = document.createElement("span");
-      tag.className = "manual-tag";
+      // manual-status-tagは、保管期限内タグ(同じmanual-tagクラスを使う)と
+      // 区別してスマホでだけ非表示にするためのフック。
+      tag.className = "manual-tag manual-status-tag";
       tag.textContent = "手動";
       verdictRow.appendChild(tag);
     }
