@@ -163,7 +163,7 @@
        品名・個数(1行目)・判定(バッジ+開閉ボタン、2行目)・削除だけを
        常時表示にする。 */
     td[data-label="個数"], td[data-label="所有者"], td[data-label="カテゴリ"], td[data-label="使用頻度"],
-    td[data-label="思い入れ度"], td[data-label="決定ステータス"], td[data-label="手放し方法"] {
+    td[data-label="思い入れ度"], td[data-label="決定ステータス"], td[data-label="手放し方法"], td[data-label="メモ"] {
       display: none;
     }
     .quick-fields-block { display: flex; }
@@ -235,7 +235,7 @@
         </colgroup>
         <thead>
           <tr>
-            <th>品名</th><th>個数</th><th>判定</th><th>所有者</th><th>カテゴリ</th><th>使用頻度</th><th>思い入れ度</th><th>決定ステータス</th><th>手放し方法</th><th></th>
+            <th>品名</th><th>個数</th><th>判定</th><th>所有者</th><th>カテゴリ</th><th>使用頻度</th><th>思い入れ度</th><th>決定ステータス</th><th>手放し方法</th><th>メモ</th><th></th>
           </tr>
         </thead>
         <tbody id="itemBody"></tbody>
@@ -588,6 +588,7 @@
       "決定ステータス": STATUS_TO_NOTION[item.manualStatus] || "未定",
       "廃棄カテゴリ": item.disposalCategory || "",
       "手放し方法": item.disposalMethod || "",
+      "メモ": item.memo || "",
       "個数": item.quantity || 1,
       "適正数": item.properQuantity || null,
       "法定保存の可能性": item.docLegalFlag ? "__YES__" : "__NO__",
@@ -643,6 +644,7 @@
       retentionUntil: row["date:保管期限:start"] || "",
       disposalCategory: row["廃棄カテゴリ"] || "",
       disposalMethod: row["手放し方法"] || "",
+      memo: row["メモ"] || "",
       docLegalFlag: row["法定保存の可能性"] === "__YES__",
       docDigitized: row["電子化済み"] === "__YES__",
       docRetrievable: row["別途参照可能"] === "__YES__",
@@ -1248,6 +1250,21 @@
     return select;
   }
 
+  // 一覧の列・▸詳細の両方から使う「メモ」自由入力欄。
+  function buildMemoInput(item) {
+    var input = document.createElement("input");
+    input.type = "text";
+    input.className = "status-select memo-input";
+    input.placeholder = "メモ";
+    input.value = item.memo || "";
+    input.addEventListener("change", function () {
+      commitItemChange(item, function () {
+        item.memo = input.value;
+      }, function () { return { "メモ": item.memo }; });
+    });
+    return input;
+  }
+
   // アイテム削除ボタン。スマホでは判定タグと同じ行(.mobile-rm-btn)にも
   // もう1つ複製して表示するため、呼ぶたびに独立したボタンを生成する。
   function buildRmButton(item) {
@@ -1416,6 +1433,10 @@
     tdMethod.appendChild(buildDisposalMethodSelect(item));
     appendMethodNoteAndLinks(tdMethod, item);
 
+    var tdMemo = document.createElement("td");
+    tdMemo.setAttribute("data-label", "メモ");
+    tdMemo.appendChild(buildMemoInput(item));
+
     var tdRm = document.createElement("td");
     tdRm.className = "rm-cell";
     tdRm.appendChild(buildRmButton(item));
@@ -1429,6 +1450,7 @@
     tr.appendChild(tdAttach);
     tr.appendChild(tdStatus);
     tr.appendChild(tdMethod);
+    tr.appendChild(tdMemo);
     tr.appendChild(tdRm);
     return tr;
   }
@@ -1726,7 +1748,7 @@
     var expandRow = document.createElement("tr");
     expandRow.className = "self-q-row";
     var expandCell = document.createElement("td");
-    expandCell.colSpan = 10;
+    expandCell.colSpan = 11;
     expandCell.appendChild(buildItemQuickFieldsBlock(item));
     expandCell.appendChild(buildScoreBreakdownBlock(item));
     expandCell.appendChild(buildRetentionBlock(item));
