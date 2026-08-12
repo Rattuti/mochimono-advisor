@@ -113,7 +113,14 @@
   .badge .score { font-weight: 400; opacity: 0.85; }
   .manual-tag { display: block; font-size: 0.7rem; color: var(--muted); margin-top: 2px; white-space: normal; }
   .status-select { font-size: 0.8rem; padding: 4px 6px; text-overflow: ellipsis; }
-  .memo-input { width: 160px; }
+  .memo-input { width: 160px; position: relative; transition: width .12s ease; }
+  .memo-input:focus {
+    width: 340px;
+    z-index: 20;
+    box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    background: #fff;
+  }
+  td[data-label="メモ"], .quick-fields-block label:has(.memo-input) { position: relative; }
   .cat-count-hint { display: block; font-size: 0.72rem; color: var(--muted); margin-top: 2px; white-space: normal; }
   .method-note { font-size: 0.72rem; color: var(--muted); white-space: normal; margin-top: 4px; }
   .research-btn {
@@ -1258,9 +1265,11 @@
     input.className = "status-select memo-input";
     input.placeholder = "メモ";
     input.value = item.memo || "";
+    input.title = item.memo || "";
     input.addEventListener("change", function () {
       commitItemChange(item, function () {
         item.memo = input.value;
+        input.title = item.memo || "";
       }, function () { return { "メモ": item.memo }; });
     });
     return input;
