@@ -213,7 +213,7 @@
     <h2>家族メンバー</h2>
     <div class="member-list" id="memberList"></div>
     <div class="row">
-      <input type="text" id="memberInput" placeholder="名前を追加(例: お父さん)">
+      <input type="text" id="memberInput" placeholder="名前を追加(例: お父さん)" aria-label="家族メンバーの名前">
       <button type="button" id="addMemberBtn">追加</button>
     </div>
     <p class="hint">アイテム登録時の「所有者」の選択肢になります。「(共有)」は常に選択できます。</p>
@@ -222,7 +222,7 @@
   <div class="panel">
     <h2>アイテムを追加</h2>
     <div class="row">
-      <input type="text" id="itemName" placeholder="品名を入力してEnter(例: 学生時代の教科書)" style="flex:1; min-width:220px;">
+      <input type="text" id="itemName" placeholder="品名を入力してEnter(例: 学生時代の教科書)" style="flex:1; min-width:220px;" aria-label="品名">
       <input type="number" id="itemQuantity" min="1" value="1" style="width:76px;" title="個数">
       <button type="button" id="addItemBtn">追加</button>
     </div>
@@ -486,10 +486,14 @@
       }
 
       function getAppKey() {
-        var key = localStorage.getItem(APP_KEY_STORAGE);
+        var key = null;
+        try { key = localStorage.getItem(APP_KEY_STORAGE); } catch (e) { key = null; }
         if (!key) {
           key = window.prompt("Notion連携用のアプリキーを入力してください");
-          if (key) localStorage.setItem(APP_KEY_STORAGE, key);
+          if (key) {
+            try { localStorage.setItem(APP_KEY_STORAGE, key); }
+            catch (e) { /* localStorageが使えない環境では保存をあきらめる(致命的ではない) */ }
+          }
         }
         return key;
       }
@@ -502,7 +506,7 @@
           body: JSON.stringify(body)
         }).then(function (res) {
           if (res.status === 401) {
-            localStorage.removeItem(APP_KEY_STORAGE);
+            try { localStorage.removeItem(APP_KEY_STORAGE); } catch (e) { /* 同上 */ }
             return Promise.reject({ code: "unauthorized", message: "アプリキーが正しくありません" });
           }
           if (!res.ok) {
@@ -1273,6 +1277,10 @@
         input.title = item.memo || "";
       }, function () { return { "メモ": item.memo }; });
     });
+    // 品名・メンバー追加と同様、Enterで確定できるようにする(blur()でchangeを発火)。
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") input.blur();
+    });
     return input;
   }
 
@@ -1350,6 +1358,11 @@
       commitItemChange(item, function () {
         item.name = newName;
       }, function () { return { "品名": item.name }; });
+    });
+    // 他の入力欄(品名追加・メンバー追加)と同様、Enterで確定できるようにする
+    // (blur()すると上のchangeイベントが発火し、既存の保存処理がそのまま走る)。
+    nameInputCell.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") nameInputCell.blur();
     });
     nameRow.appendChild(nameInputCell);
     // スマホでは品名と同じ行の右端に個数を表示する(PCでは.mobile-qty-input
@@ -2103,6 +2116,8 @@
     });
 
     document.getElementById("clearAllBtn").addEventListener("click", function () {
+      if (!state.items.length) return;
+      if (!window.confirm("登録されている" + state.items.length + "件のアイテムをすべて削除します。よろしいですか?")) return;
       var toDelete = state.items;
       state.items = [];
       renderAll();
