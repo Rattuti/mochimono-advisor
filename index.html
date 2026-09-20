@@ -14,7 +14,7 @@
     --accent: #8b6b7a;
     --accent-dark: #6f4f5d;
     --keep: #6b8f71;
-    --consider: #c99a3f;
+    --consider: #866526;
     --letgo: #b3546b;
   }
   * { box-sizing: border-box; }
@@ -223,7 +223,7 @@
     <h2>アイテムを追加</h2>
     <div class="row">
       <input type="text" id="itemName" placeholder="品名を入力してEnter(例: 学生時代の教科書)" style="flex:1; min-width:220px;" aria-label="品名">
-      <input type="number" id="itemQuantity" min="1" value="1" style="width:76px;" title="個数">
+      <input type="number" id="itemQuantity" min="1" value="1" style="width:76px;" title="個数" aria-label="個数">
       <button type="button" id="addItemBtn">追加</button>
     </div>
     <p class="hint">品名と個数だけでOK。所有者・カテゴリなどは一覧の行から後で設定できます。</p>
@@ -244,7 +244,7 @@
         </colgroup>
         <thead>
           <tr>
-            <th>品名</th><th>個数</th><th>判定</th><th>所有者</th><th>カテゴリ</th><th>使用頻度</th><th>思い入れ度</th><th>決定ステータス</th><th>手放し方法</th><th>メモ</th><th></th>
+            <th scope="col">品名</th><th scope="col">個数</th><th scope="col">判定</th><th scope="col">所有者</th><th scope="col">カテゴリ</th><th scope="col">使用頻度</th><th scope="col">思い入れ度</th><th scope="col">決定ステータス</th><th scope="col">手放し方法</th><th scope="col">メモ</th><th scope="col"></th>
           </tr>
         </thead>
         <tbody id="itemBody"></tbody>
