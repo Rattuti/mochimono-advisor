@@ -13,9 +13,9 @@
     --muted: #7a716d;
     --accent: #8b6b7a;
     --accent-dark: #6f4f5d;
-    --keep: #6b8f71;
+    --keep: #5a785f;
     --consider: #866526;
-    --letgo: #b3546b;
+    --letgo: #b25168;
   }
   * { box-sizing: border-box; }
   body {
@@ -111,7 +111,7 @@
     display: inline-flex; align-items: center; gap: 5px;
     padding: 3px 10px; border-radius: 999px; font-size: 0.78rem; color: #fff; font-weight: 600;
   }
-  .badge .score { font-weight: 400; opacity: 0.85; }
+  .badge .score { font-weight: 400; opacity: 0.95; }
   .manual-tag { display: block; font-size: 0.7rem; color: var(--muted); margin-top: 2px; white-space: normal; }
   .status-select { font-size: 0.8rem; padding: 4px 6px; text-overflow: ellipsis; }
   .memo-input { width: 160px; position: relative; transition: width .12s ease; }
@@ -1310,6 +1310,17 @@
       methodNote.className = "method-note";
       methodNote.textContent = methodNoteText;
       container.appendChild(methodNote);
+    }
+    // 「手放し方法」が設定されたまま判定(決定ステータス含む)が「残す」に
+    // 戻っていると、手放し方法だけが古い状態で残り紛らわしいため気づけるようにする。
+    // 「未設定」はセレクト自身の選択肢からいつでも選べるので、ここでは
+    // 気づきのヒントのみ追加し、値の自動クリアはしない。
+    if (item.disposalMethod && effectiveStatus(item).status === "残す") {
+      var keepMismatchNote = document.createElement("div");
+      keepMismatchNote.className = "method-note";
+      keepMismatchNote.style.color = "var(--keep)";
+      keepMismatchNote.textContent = "現在の判定は「残す」です(手放し方法が設定されたままです。不要なら「未設定」に戻せます)";
+      container.appendChild(keepMismatchNote);
     }
     buildResearchLinks(item).forEach(function (link) {
       var researchLink = document.createElement("a");
