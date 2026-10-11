@@ -354,7 +354,11 @@
   var VERDICT_LETGO_THRESHOLD = 65;
   var VERDICT_CONSIDER_THRESHOLD = 35;
 
-  // ---------- ゴミ収集カレンダー・廃棄ルール(このブラウザのlocalStorageにのみ保存、Notion同期なし) ----------
+  // ---------- ゴミ収集カレンダー・廃棄ルール ----------
+  // Notion未接続時はこのブラウザのlocalStorageにのみ保存。Notion接続時は
+  // 下記のnotionLoadWasteSettings/notionSaveMunicipality/notionCreate・
+  // UpdateWasteRule経由でNotion側のデータと同期する(saveWasteSettings内の
+  // NOTION_ENABLEDチェックで二重保存を避けている)。
   var DISPOSAL_CATEGORY_OPTIONS = [
     "燃えるごみ", "燃えないごみ", "資源ごみ(古紙・古布)", "資源ごみ(びん・かん・ペットボトル)",
     "プラスチック製容器包装", "粗大ごみ", "その他/不明"
@@ -381,7 +385,13 @@
       var parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object") return defaultWasteSettings();
       parsed.rules = (parsed.rules || []).map(function (r) {
-        r.id = r.id || "wr-" + (nextWasteRuleId++);
+        // 既存ルールは大抵idを持っているため「r.id || "wr-"+(nextWasteRuleId++)」だと
+        // 右辺が評価されずnextWasteRuleIdが進まない。新規追加時に既存と同じ
+        // "wr-1"等のidが再利用され、削除ボタンが同じidの複数行を一括削除して
+        // しまう不具合があったため、既存idの最大連番を見てカウンタを前進させる。
+        if (!r.id) { r.id = "wr-" + (nextWasteRuleId++); }
+        var existingNum = parseInt(String(r.id).replace("wr-", ""), 10);
+        if (!isNaN(existingNum) && existingNum >= nextWasteRuleId) nextWasteRuleId = existingNum + 1;
         return r;
       });
       return parsed;
