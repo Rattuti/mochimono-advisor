@@ -1194,6 +1194,7 @@
   function buildOwnerSelect(item) {
     var ownerSelect = document.createElement("select");
     ownerSelect.className = "status-select";
+    ownerSelect.setAttribute("aria-label", "所有者");
     renderOwnerSelect(ownerSelect);
     ownerSelect.value = item.owner;
     ownerSelect.addEventListener("change", function () {
@@ -1207,6 +1208,7 @@
   function buildCategorySelect(item) {
     var catSelect = document.createElement("select");
     catSelect.className = "status-select";
+    catSelect.setAttribute("aria-label", "カテゴリ");
     renderCategorySelect(catSelect, item.category);
     catSelect.addEventListener("change", function () {
       commitItemChange(item, function () {
@@ -1219,6 +1221,7 @@
   function buildFreqSelect(item) {
     var freqSelect = document.createElement("select");
     freqSelect.className = "status-select";
+    freqSelect.setAttribute("aria-label", "使用頻度");
     renderSelectOptions(freqSelect, FREQ_OPTIONS, function (o) { return o.label; }, function (o) { return o.value; });
     freqSelect.value = item.freq;
     freqSelect.addEventListener("change", function () {
@@ -1232,6 +1235,7 @@
   function buildAttachSelect(item) {
     var attachSelect = document.createElement("select");
     attachSelect.className = "status-select";
+    attachSelect.setAttribute("aria-label", "思い入れ度");
     renderSelectOptions(attachSelect, ATTACHMENT_OPTIONS, function (o) { return o.label; }, function (o) { return o.value; });
     attachSelect.value = item.attachment;
     attachSelect.addEventListener("change", function () {
@@ -1245,6 +1249,7 @@
   function buildStatusSelect(item) {
     var statusSelect = document.createElement("select");
     statusSelect.className = "status-select";
+    statusSelect.setAttribute("aria-label", "決定ステータス");
     MANUAL_STATUS_OPTIONS.forEach(function (s) {
       addOption(statusSelect, s, s, s === item.manualStatus);
     });
@@ -1261,6 +1266,7 @@
   function buildDisposalMethodSelect(item) {
     var select = document.createElement("select");
     select.className = "status-select";
+    select.setAttribute("aria-label", "手放し方法");
     addOption(select, "", "未設定");
     DISPOSAL_METHOD_OPTIONS.forEach(function (m) {
       addOption(select, m, m, m === item.disposalMethod);
@@ -1279,6 +1285,7 @@
     input.type = "text";
     input.className = "status-select memo-input";
     input.placeholder = "メモ";
+    input.setAttribute("aria-label", "メモ");
     input.value = item.memo || "";
     input.title = item.memo || "";
     input.addEventListener("change", function () {
@@ -1351,6 +1358,7 @@
     quantityInput.type = "number";
     quantityInput.min = "1";
     quantityInput.className = "status-select qty-input";
+    quantityInput.setAttribute("aria-label", "個数");
     quantityInput.value = item.quantity || 1;
     quantityInput.addEventListener("change", function () {
       commitItemChange(item, function () {
@@ -1372,6 +1380,7 @@
     var nameInputCell = document.createElement("input");
     nameInputCell.type = "text";
     nameInputCell.className = "name-input";
+    nameInputCell.setAttribute("aria-label", "品名");
     nameInputCell.value = item.name;
     nameInputCell.addEventListener("change", function () {
       var newName = nameInputCell.value.trim();
@@ -1786,6 +1795,10 @@
     appendMethodNoteAndLinks(methodGroup, item);
     block.appendChild(methodGroup);
 
+    // メモはスマホでは一覧の列(tdMemo)がCSSで非表示になるため、▸詳細側にも
+    // 用意しないと入力・確認が一切できなくなっていた(他の項目と同じ構造で追加)。
+    block.appendChild(buildQuickFieldGroup("メモ", buildMemoInput(item)));
+
     return block;
   }
 
@@ -1900,6 +1913,7 @@
 
       var catSelect = document.createElement("select");
       catSelect.className = "status-select";
+      catSelect.setAttribute("aria-label", "ごみの分別カテゴリ");
       DISPOSAL_CATEGORY_OPTIONS.forEach(function (c) {
         addOption(catSelect, c, c, c === rule.category);
       });
@@ -1910,6 +1924,7 @@
 
       var modeSelect = document.createElement("select");
       modeSelect.className = "status-select";
+      modeSelect.setAttribute("aria-label", "収集モード(毎週/第N週のみ)");
       [["weekly", "毎週"], ["nth", "第N週のみ"]].forEach(function (pair) {
         addOption(modeSelect, pair[0], pair[1], pair[0] === rule.mode);
       });
