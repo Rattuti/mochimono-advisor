@@ -10,7 +10,7 @@
     --panel: #ffffff;
     --border: #e8e0dd;
     --text: #2e2a29;
-    --muted: #7a716d;
+    --muted: #736b67;
     --accent: #8b6b7a;
     --accent-dark: #6f4f5d;
     --keep: #5a785f;
@@ -198,6 +198,10 @@
     .manual-status-tag { display: none; }
     .mobile-rm-btn { display: inline-flex; flex-shrink: 0; margin-left: auto; }
     .rm-cell { display: none; }
+    /* .memo-input:focusの固定340pxは画面幅360〜390px程度のスマホだと
+       パネルからはみ出し横スクロールの原因になるため、幅のある画面でのみ
+       有効なそのルールをここで上書きし、コンテナ幅に収める。 */
+    .memo-input, .memo-input:focus { width: 100%; }
   }
 </style>
 </head>
