@@ -637,11 +637,6 @@
     return rows.filter(function (row) { return row["削除済み"] !== "__YES__"; });
   }
 
-  function parseJsonArrayProp(str) {
-    if (!str) return [];
-    try { return JSON.parse(str); } catch (e) { return []; }
-  }
-
   // 真偽値配列(断捨離診断の回答)をテキストプロパティに保存する際のエンコード方式。
   // JSON.stringify(配列)をそのままテキストプロパティに書き込むと、保存時に
   // 空文字になって消えてしまう不具合を実機検証で確認したため、JSON形式を避け
